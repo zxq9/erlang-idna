@@ -81,7 +81,7 @@ handle_call({load, Source}, _From, _State) when is_binary(Source) ->
 handle_call({load, Source}, _From, State) when is_list(Source) ->
   case lists:prefix("http://", Source) of
     true ->
-      case http:request(get, {Source, []}, [], [{body_format, binary}]) of
+      case httpc:request(get, {Source, []}, [], [{body_format, binary}]) of
         {ok, {{_, 200, _}, _, Data}} ->
           {reply, ok, parse(Data)};
         _ ->
