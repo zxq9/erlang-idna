@@ -5,8 +5,8 @@
 -define(ACE_PREFIX, "xn--").
 
 start() ->
-  idna_unicode_data:start(),
-  idna_unicode_data:load("http://www.unicode.org/Public/UNIDATA/UnicodeData.txt").
+  {ok, Data} = file:read_file("priv/UnicodeData.txt"),
+  idna_unicode_data:start(Data).
 
 to_ascii(Domain) ->
   to_ascii(string:tokens(idna_unicode:downcase(Domain), "."), []).

@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([combining_class/1, compat/1, composition/2, load/1, lowercase/1, start/0, start_link/0]).
+-export([combining_class/1, compat/1, composition/2, load/1, lowercase/1, start/1, start_link/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
 
@@ -37,18 +37,18 @@ load(Data) ->
 lowercase(C) ->
   gen_server:call(?SERVER, {lowercase, C}).
 
-start() ->
-  gen_server:start({local, ?SERVER}, ?MODULE, noargs, []).
+start(Data) ->
+  gen_server:start({local, ?SERVER}, ?MODULE, Data, []).
 
-start_link() ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, noargs, []).
+start_link(Data) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, Data, []).
 
 %%============================================================================
 %% gen_server callbacks
 %%============================================================================
 
-init(noargs) ->
-  {ok, undefined}.
+init(Data) ->
+  {ok, parse(Data)}.
 
 handle_call({combining_class, C}, _From, Data) ->
   case lookup(C, Data) of
