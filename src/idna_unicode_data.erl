@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([combining_class/1, compat/1, composition/2, load/1, lowercase/1, start/1, start_link/1]).
+-export([combining_class/1, compat/1, composition/2, lowercase/1, start/1, start_link/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
 
@@ -30,9 +30,6 @@ compat(C) ->
 
 composition(A, B) ->
   gen_server:call(?SERVER, {composition, A, B}).
-
-load(Data) ->
-  gen_server:call(?SERVER, {load, Data}, 10000).
 
 lowercase(C) ->
   gen_server:call(?SERVER, {lowercase, C}).
@@ -75,25 +72,6 @@ handle_call({composition, A, B}, _From, Data) ->
       {reply, erlang:list_to_integer(element(1, Props), 16), Data};
     false ->
       {reply, undefined, Data}
-  end;
-handle_call({load, Source}, _From, _State) when is_binary(Source) ->
-  {reply, ok, parse(Source)};
-handle_call({load, Source}, _From, State) when is_list(Source) ->
-  case lists:prefix("http://", Source) of
-    true ->
-      case httpc:request(get, {Source, []}, [], [{body_format, binary}]) of
-        {ok, {{_, 200, _}, _, Data}} ->
-          {reply, ok, parse(Data)};
-        _ ->
-          {reply, {error, bad_http_response}, State}
-      end;
-    false ->
-      case file:read_file(Source) of
-        {ok, Data} ->
-          {reply, ok, parse(Data)};
-        Error ->
-          {reply, Error, State}
-      end
   end;
 handle_call({lowercase, C}, _From, Data) ->
   lookup(C, Data, fun(Props) ->
