@@ -1,12 +1,10 @@
 -module(idna).
 
--export([start/0, to_ascii/1, utf8_to_ascii/1]).
+-export([to_ascii/1, utf8_to_ascii/1]).
 
 -define(ACE_PREFIX, "xn--").
 
-start() ->
-  {ok, Data} = file:read_file("priv/UnicodeData.txt"),
-  idna_unicode_data:start(Data).
+
 
 to_ascii(Domain) ->
   to_ascii(string:tokens(idna_unicode:downcase(Domain), "."), []).
