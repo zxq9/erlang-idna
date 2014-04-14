@@ -3,12 +3,7 @@ all: clean compile
 clean:
 	@rm -rf ebin/*.beam
 
-priv/UnicodeData.txt:
-	@test -d priv || mkdir priv
-	@echo "==> download unicode data"
-	@curl --progress-bar http://www.unicode.org/Public/UNIDATA/UnicodeData.txt -o priv/UnicodeData.txt
-
-compile: priv/UnicodeData.txt
+compile:
 	@test -d ebin || mkdir ebin
 	@erl -pa ebin -make
 
