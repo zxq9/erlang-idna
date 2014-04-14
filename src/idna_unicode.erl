@@ -125,8 +125,8 @@ sort_canonical(Unicode, I, Length) ->
         true ->
             array:to_list(Unicode);
         false ->
-            Last = array:get(I - 1),
-            CP = array:get(I),
+            Last = array:get(I - 1, Unicode),
+            CP = array:get(I, Unicode),
             LastCC = idna_unicode_data:combining_class(Last),
             CC = idna_unicode_data:combining_class(CP),
             case CC =/= 0 andalso LastCC =/= 0 andalso LastCC > CC of
