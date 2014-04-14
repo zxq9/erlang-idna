@@ -14,7 +14,7 @@ punycode_encode_tests() ->
 
 idna_to_ascii_tests() ->
     test_each("test/idna_*", fun (Test) ->
-                {proplists:get_value(output, Test), idna:to_ascii(xmerl_ucs:from_utf8(proplists:get_value(input, Test)))}
+                {proplists:get_value(output, Test), idna:to_ascii(idna_ucs:from_utf8(proplists:get_value(input, Test)))}
         end).
 
 test_each(FilePattern, Fun) ->
