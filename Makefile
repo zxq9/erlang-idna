@@ -1,6 +1,6 @@
 PROJECT=idna
 PROJECT_DESCRIPTION=A pure Erlang IDNA implementation
-PROJECT_VERSION=1.0.2
+PROJECT_VERSION=1.0.3
 
 include erlang.mk
 
