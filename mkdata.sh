@@ -21,7 +21,7 @@ DATA1_OUT=src/idna_unicode_data1.erl
 DATA2_OUT=src/idna_unicode_data2.erl
 
 # fetch data file
-#$CURL_BIN -o $DATA_FILE $DATA_URL
+$CURL_BIN -o $DATA_FILE $DATA_URL
 
 # create the first module
 cat <<EOF > $DATA1_OUT

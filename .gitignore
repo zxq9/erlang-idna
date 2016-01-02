@@ -17,3 +17,7 @@ _plugins
 _tdeps
 logs
 _build
+
+UnicodeData.txt
+UnicodeData.txt.gz
+idna.d
