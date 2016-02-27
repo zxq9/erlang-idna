@@ -10,5 +10,5 @@ otp_release:
   - R16B01
   - R16B
 before_script:
-    - "./support/bootstrap_travis.sh"
+    - "./bootstrap_travis.sh"
 script: "rebar3 eunit"
