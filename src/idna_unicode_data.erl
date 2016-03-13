@@ -1,6 +1,4 @@
 -module(idna_unicode_data).
--compile([compressed]).
-
 -export([lookup/1]).
 -export([decomposition/1]).
 
