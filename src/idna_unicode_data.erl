@@ -6,14 +6,8 @@
 
 lookup("") -> false;
 lookup(Codepoint) ->
-	case lists:keyfind(Codepoint, 1, ?UNICODE_DATA) of
-		{_, A, B, C} -> {A, B, C};
-		false -> false
-	end.
+	maps:get(Codepoint, ?BY_CODE, false).
 
 decomposition("") -> false;
 decomposition(Key) ->
-	case lists:keyfind(Key, 3, ?UNICODE_DATA) of
-		{A, _, _, _} -> A;
-		false -> false
-	end.
+	maps:get(Key, ?BY_KEY, false).
