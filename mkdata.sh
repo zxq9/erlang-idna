@@ -17,7 +17,8 @@ fi
 
 DATA_FILE=UnicodeData.txt
 DATA_URL=http://www.unicode.org/Public/UNIDATA/UnicodeData.txt
-DATA_OUT=src/idna_unicode_data.erl
+DATA_OUT=src/idna_unicode_data1.erl
+DATA_OUT2=src/idna_unicode_data2.erl
 # fetch data file
 
 if [ ! -e "$DATA_FILE" ]; then
@@ -25,21 +26,23 @@ if [ ! -e "$DATA_FILE" ]; then
 fi
 
 cat <<EOF > $DATA_OUT
--module(idna_unicode_data).
-
--export([lookup/1, decomposition/1]).
-
+-module(idna_unicode_data1).
+-export([l/1]).
 EOF
 cat $DATA_FILE \
-    | awk 'BEGIN{FS=";"}{if($1!=""){ printf("lookup(\"%s\") -> {\"%s\",\"%s\",\"%s\"};\n", $1, $4, $6, $14) }};' \
+    | awk 'BEGIN{FS=";"}{if($1!=""){ printf("l(\"%s\")->{\"%s\",\"%s\",\"%s\"};\n", $1, $4, $6, $14) }};' \
     | sort \
     | uniq -w 25 \
     >> $DATA_OUT
-echo "lookup(_) -> false." >> $DATA_OUT
+echo "l(_) -> false." >> $DATA_OUT
 
+cat <<EOF > $DATA_OUT2
+-module(idna_unicode_data2).
+-export([decomposition/1]).
+EOF
 cat $DATA_FILE \
     | awk 'BEGIN{FS=";"}{if($6!=""){ printf("decomposition(\"%s\") -> \"%s\";\n", $6, $1) }};' \
     | sort \
     | uniq -w 25 \
-    >> $DATA_OUT
-echo "decomposition(_) -> false." >> $DATA_OUT
+    >> $DATA_OUT2
+echo "decomposition(_) -> false." >> $DATA_OUT2

@@ -182,7 +182,7 @@ compat(C) ->
 
 composition(A, B) ->
     Key = lists:flatten([hex(A), " ", hex(B)]),
-    case idna_unicode_data:decomposition(Key) of
+    case idna_unicode_data2:decomposition(Key) of
         false -> undefined;
         Val -> erlang:list_to_integer(Val, 16)
     end.
@@ -203,7 +203,7 @@ dehex(Strings) ->
     [erlang:list_to_integer(String, 16) || String <- Strings].
 
 lookup(Codepoint) ->
-    idna_unicode_data:lookup(hex(Codepoint)).
+    idna_unicode_data1:l(hex(Codepoint)).
 
 lookup(Codepoint, Fun) ->
     case lookup(Codepoint) of
