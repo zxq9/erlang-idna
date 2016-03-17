@@ -28,7 +28,7 @@ cat <<EOF > $DATA_OUT
 -define(BY_CODE, #{
 EOF
 cat $DATA_FILE \
-    | awk 'BEGIN{FS=";"}{if($1!=""){ printf("\"%s\" => { \"%s\", \"%s\", \"%s\"}\n", $1, $4, $6, $14) }};' \
+    | awk 'BEGIN{FS=";"}{if($1!=""){ printf("\"%s\" => {\"%s\",\"%s\",\"%s\"}\n", $1, $4, $6, $14) }};' \
     | sort \
     | uniq -w 25 \
     | awk '{print t $0;}; {t = ","} ' \
