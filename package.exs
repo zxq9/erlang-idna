@@ -3,7 +3,7 @@ defmodule IDNA.Mixfile do
 
   def project do
     [app: :idna,
-     version: "1.2.0",
+     version: "2.0.0",
      description: "A pure Erlang IDNA implementation",
      package: package]
   end
