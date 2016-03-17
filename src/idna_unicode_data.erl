@@ -1,7 +1,8 @@
 -module(idna_unicode_data).
+-compile([compressed]).
+
 -export([lookup/1, decomposition/1]).
 
-lookup("") -> false;
 lookup("0000") -> {"0","",""};
 lookup("0001") -> {"0","",""};
 lookup("0002") -> {"0","",""};
@@ -29218,7 +29219,6 @@ lookup("FFFC") -> {"0","",""};
 lookup("FFFD") -> {"0","",""};
 lookup("FFFFD") -> {"0","",""};
 lookup(_) -> false.
-decomposition("") -> false;
 decomposition("003B") -> "037E";
 decomposition("003C 0338") -> "226E";
 decomposition("003D 0338") -> "2260";

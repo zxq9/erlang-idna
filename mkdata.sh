@@ -26,9 +26,9 @@ fi
 
 cat <<EOF > $DATA_OUT
 -module(idna_unicode_data).
+
 -export([lookup/1, decomposition/1]).
 
-lookup("") -> false;
 EOF
 cat $DATA_FILE \
     | awk 'BEGIN{FS=";"}{if($1!=""){ printf("lookup(\"%s\") -> {\"%s\",\"%s\",\"%s\"};\n", $1, $4, $6, $14) }};' \
@@ -37,10 +37,6 @@ cat $DATA_FILE \
     >> $DATA_OUT
 echo "lookup(_) -> false." >> $DATA_OUT
 
-
-cat <<EOF >> $DATA_OUT
-decomposition("") -> false;
-EOF
 cat $DATA_FILE \
     | awk 'BEGIN{FS=";"}{if($6!=""){ printf("decomposition(\"%s\") -> \"%s\";\n", $6, $1) }};' \
     | sort \
