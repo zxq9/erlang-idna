@@ -6,6 +6,6 @@
   {applications, [kernel, stdlib, p1_utils, stringprep]},
 
   {maintainers, ["Benoit Chesneau"]},
-  {license, ["BSD"]},
+  {licenses, ["BSD"]},
   {links, [{"Github", "https://github.com/benoitc/erlang-idna"}]}
 ]}.
