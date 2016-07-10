@@ -1,20 +1,27 @@
 -module(idna).
 
 -export([to_ascii/1,
-         utf8_to_ascii/1,
-         from_ascii/1]).
+         to_unicode/1]).
 
 -define(ACE_PREFIX, "xn--").
 
-to_ascii(Domain) ->
-    to_ascii(string:tokens(idna_unicode:downcase(Domain), "."), []).
+to_ascii(Domain) when is_binary(Domain) ->
+    Domain1 = unicode:characters_to_list(stringprep:nameprep(Domain)),
+    to_ascii1(Domain1);
+to_ascii(Domain) when is_list(Domain) ->
+  to_ascii(iolist_to_binary(Domain)).
 
-utf8_to_ascii(Domain) ->
-    to_ascii(idna_ucs:from_utf8(Domain)).
+to_ascii1(Domain) ->
+  Parts = string:tokens(Domain, "."),
+  to_ascii(Parts, []).
 
--spec from_ascii(nonempty_string()) -> nonempty_string().
+-spec to_unicode(nonempty_string()) -> binary().
+to_unicode(Domain) ->
+  unicode:characters_to_binary(from_ascii(Domain), utf8).
+
 from_ascii(Domain) ->
-    from_ascii(string:tokens(Domain, "."), []).
+  from_ascii(string:tokens(Domain, "."), []).
+
 
 %% Helper functions
 %%
@@ -26,11 +33,11 @@ to_ascii([Label|Labels], Acc) ->
     to_ascii(Labels, lists:reverse(label_to_ascii(Label), [$.|Acc])).
 
 label_to_ascii(Label) ->
-    case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label) of
+    case lists:all(fun(C) -> is_ascii(C) end, Label) of
         true ->
             Label;
         false ->
-            ?ACE_PREFIX ++ punycode:encode(idna_unicode:normalize_kc(Label))
+            ?ACE_PREFIX ++ punycode:encode(Label)
     end.
 
 from_ascii([], Acc) ->
@@ -44,3 +51,7 @@ label_from_ascii(?ACE_PREFIX ++ Label) ->
     punycode:decode(Label);
 label_from_ascii(Label) ->
     Label.
+
+
+is_ascii(Ch) when is_integer(Ch), Ch >= 0, Ch =< 127 -> true;
+is_ascii(_) -> false.

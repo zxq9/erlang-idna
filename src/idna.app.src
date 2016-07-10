@@ -1,9 +1,9 @@
 {application, idna, [
   {description, "A pure Erlang IDNA implementation"},
-  {vsn, "2.0.0"},
-  {modules, [idna, idna_unicode, idna_unicode_data, idna_ucs, punycode]},
+  {vsn, "3.0.0"},
+  {modules, []},
   {registered, []},
-  {applications, [kernel, stdlib]},
+  {applications, [kernel, stdlib, p1_utils, stringprep]},
 
   {maintainers, ["Benoit Chesneau"]},
   {license, ["BSD"]},
