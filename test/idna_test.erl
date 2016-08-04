@@ -17,11 +17,10 @@ punycode_encode_test() ->
                                           end).
 
 idna_to_ascii_test() ->
-    application:ensure_all_started(idna),
     test_each(fixture_path("idna_*"), fun (Test) ->
                                      Expect = proplists:get_value(output, Test),
                                      Input = proplists:get_value(input, Test),
-                                     ?assertEqual(Expect,idna:to_ascii(Input))
+                                     ?assertEqual(Expect,idna:to_ascii(idna_ucs:from_utf8(Input)))
                              end).
 
 test_each(FilePattern, Fun) ->
