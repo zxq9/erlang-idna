@@ -6,7 +6,7 @@ A pure Erlang IDNA implementation.
 ## Usage
 
 ```erlang
-1> Domain = xmerl_ucs:from_utf8("www.詹姆斯.com").
+1> Domain = unicode.characters_to_list("www.詹姆斯.com").
 ...
 2> idna:to_ascii(Domain).
 ...
