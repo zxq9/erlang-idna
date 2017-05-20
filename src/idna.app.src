@@ -7,5 +7,13 @@
 
   {maintainers, ["Benoit Chesneau"]},
   {licenses, ["BSD"]},
-  {links, [{"Github", "https://github.com/benoitc/erlang-idna"}]}
+  {links, [{"Github", "https://github.com/benoitc/erlang-idna"}]},
+  {files, ["src",
+           "uc_spec",
+           "test",
+           "rebar.config",
+           "rebar.config.script",
+           "README.md",
+           "LICENSE"]}
+
 ]}.
