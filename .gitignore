@@ -21,3 +21,5 @@ _build
 UnicodeData.txt
 UnicodeData.txt.gz
 idna.d
+
+uc_spec/unicode_util.erl
