@@ -54,13 +54,13 @@ lowercase(CD) when is_binary(CD) ->
   lowercase_bin(CD,<<>>).
 
 lowercase_list(CPs0) ->
-  case unicode_util:lowercase(CPs0) of
+  case unicode_util_compat:lowercase(CPs0) of
     [Char|CPs] -> append(Char,lowercase_list(CPs));
     [] -> []
   end.
 
 lowercase_bin(CPs0, Acc) ->
-  case unicode_util:lowercase(CPs0) of
+  case unicode_util_compat:lowercase(CPs0) of
     [Char|CPs] when is_integer(Char) ->
       lowercase_bin(CPs, <<Acc/binary, Char/utf8>>);
     [Chars|CPs] ->
@@ -77,7 +77,7 @@ append(GC, Str) when is_list(GC) -> GC ++ Str.
 
 
 characters_to_nfkc_list(CD) ->
-    case unicode_util:nfkc(CD) of
+    case unicode_util_compat:nfkc(CD) of
         [CPs|Str] when is_list(CPs) -> CPs ++ characters_to_nfkc_list(Str);
         [CP|Str] -> [CP|characters_to_nfkc_list(Str)];
         [] -> []
