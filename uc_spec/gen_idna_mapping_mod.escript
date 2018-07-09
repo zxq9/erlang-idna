@@ -66,7 +66,7 @@ gen_header(Fd) ->
 
 gen_utc46(Fd, Data) ->
   lists:foreach(fun({Cp, Status, Mapping, IStatus}) ->
-                    io:format(Fd, "uts46_map~s {~p, ~p, ~p};~n", [gen_single_clause(Cp), Status, Mapping, IStatus])
+                    io:format(Fd, "uts46_map~s {~p, ~w, ~p};~n", [gen_single_clause(Cp), Status, Mapping, IStatus])
                 end,
                 optimize_ranges(lists:sort(Data))),
   io:put_chars(Fd, "uts46_map(_) -> false."),
