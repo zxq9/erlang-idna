@@ -8,9 +8,9 @@ A pure Erlang IDNA implementation.
 ## Usage
 
 ```erlang
-1> idna:to_ascii("日本語。ＪＰ").
+1> idna:encode("日本語。ＪＰ", [uts46]).
 "xn--wgv71a119e.xn--jp-"
-2> idna:to_ascii("日本語.ＪＰ").
+2> idna:encode("日本語.ＪＰ", [uts46]).
 "xn--wgv71a119e.xn--jp-"
 ...
 ```
