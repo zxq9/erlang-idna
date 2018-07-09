@@ -2,13 +2,16 @@
 
 A pure Erlang IDNA implementation.
 
+* support IDNA 2008
+
 
 ## Usage
 
 ```erlang
-1> Domain = unicode:characters_to_list("www.詹姆斯.com").
-...
-2> idna:to_ascii(Domain).
+1> idna:to_ascii("日本語。ＪＰ").
+"xn--wgv71a119e.xn--jp-"
+2> idna:to_ascii("日本語.ＪＰ").
+"xn--wgv71a119e.xn--jp-"
 ...
 ```
 
