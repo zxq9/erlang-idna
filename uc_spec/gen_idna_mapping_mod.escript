@@ -38,17 +38,17 @@ to_mapping(Mapping) ->
   [hex_to_int(C) || C <- string:lexemes(Mapping, " ")].
 -else.
 to_mapping(Mapping) ->
-   [hex_to_int(C) || C <- string:strip(string:tokens(Mapping, " "), both)].
+  [hex_to_int(C) || C <- string:strip(string:tokens(Mapping, " "), both)].
 -endif.
 
 
 to_range(CodePoints0) ->
-   case tokens(CodePoints0, ".") of
-     [CodePoint] ->
-       {hex_to_int(CodePoint), undefined};
-     [CodePoint1, "", CodePoint2] ->
-       {hex_to_int(CodePoint1), hex_to_int(CodePoint2)}
-   end.
+  case tokens(CodePoints0, ".") of
+    [CodePoint] ->
+      {hex_to_int(CodePoint), undefined};
+    [CodePoint1, "", CodePoint2] ->
+      {hex_to_int(CodePoint1), hex_to_int(CodePoint2)}
+  end.
 
 
 gen_file(Fd, Data) ->
@@ -72,16 +72,10 @@ gen_utc46(Fd, Data) ->
   io:put_chars(Fd, "uts46_map(_) -> false."),
   ok.
 
-
-
-
 gen_single_clause({R0, undefined}) ->
-    io_lib:format("(~w) ->", [R0]);
+  io_lib:format("(~w) ->", [R0]);
 gen_single_clause({R0, R1}) ->
-    io_lib:format("(CP) when ~w =< CP, CP =< ~w ->", [R0,R1]).
-
-
-
+  io_lib:format("(CP) when ~w =< CP, CP =< ~w ->", [R0,R1]).
 
 optimize_ranges(Rs0) ->
   PF = fun({{N, undefined}, _, _, _}) when is_integer(N) -> true;
@@ -98,51 +92,51 @@ optimize_ranges(Rs0) ->
 -ifdef('OTP_RELEASE').
 hex_to_int([]) -> [];
 hex_to_int(HexStr) ->
-    list_to_integer(string:trim(HexStr, both), 16).
+  list_to_integer(string:trim(HexStr, both), 16).
 
 to_atom(Str) ->
-    list_to_atom(string:lowercase(string:trim(Str, both))).
+  list_to_atom(string:lowercase(string:trim(Str, both))).
 -else.
 hex_to_int([]) -> [];
 hex_to_int(HexStr) ->
-    list_to_integer(string:strip(HexStr, both), 16).
+  list_to_integer(string:strip(HexStr, both), 16).
 
 to_atom(Str) ->
-    list_to_atom(string:to_lower(string:strip(Str, both))).
+  list_to_atom(string:to_lower(string:strip(Str, both))).
 -endif.
 
 foldl(Fun, Acc, Fd) ->
-    Get = fun() -> file:read_line(Fd) end,
-    foldl_1(Fun, Acc, Get).
+  Get = fun() -> file:read_line(Fd) end,
+  foldl_1(Fun, Acc, Get).
 
 foldl_1(_Fun, {done, Acc}, _Get) -> Acc;
 foldl_1(Fun, Acc, Get) ->
-    case Get() of
-        eof -> Acc;
-        {ok, "#" ++ _} -> %% Ignore comments
-            foldl_1(Fun, Acc, Get);
-        {ok, "\n"} -> %% Ignore empty lines
-            foldl_1(Fun, Acc, Get);
-        {ok, Line} ->
-            foldl_1(Fun, Fun(Line, Acc), Get)
-    end.
+  case Get() of
+    eof -> Acc;
+    {ok, "#" ++ _} -> %% Ignore comments
+      foldl_1(Fun, Acc, Get);
+    {ok, "\n"} -> %% Ignore empty lines
+      foldl_1(Fun, Acc, Get);
+    {ok, Line} ->
+      foldl_1(Fun, Fun(Line, Acc), Get)
+  end.
 
 
 
 %% Differs from string:tokens, it returns empty string as token between two delimiters
 tokens(S, [C]) ->
-    tokens(lists:reverse(S), C, []).
+  tokens(lists:reverse(S), C, []).
 
 tokens([Sep|S], Sep, Toks) ->
-    tokens(S, Sep, [[]|Toks]);
+  tokens(S, Sep, [[]|Toks]);
 tokens([C|S], Sep, Toks) ->
-    tokens_2(S, Sep, Toks, [C]);
+  tokens_2(S, Sep, Toks, [C]);
 tokens([], _, Toks) ->
-    Toks.
+  Toks.
 
 tokens_2([Sep|S], Sep, Toks, Tok) ->
-    tokens(S, Sep, [Tok|Toks]);
+  tokens(S, Sep, [Tok|Toks]);
 tokens_2([C|S], Sep, Toks, Tok) ->
-    tokens_2(S, Sep, Toks, [C|Tok]);
+  tokens_2(S, Sep, Toks, [C|Tok]);
 tokens_2([], _Sep, Toks, Tok) ->
-    [Tok|Toks].
+  [Tok|Toks].
