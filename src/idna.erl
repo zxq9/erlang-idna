@@ -1,7 +1,8 @@
 -module(idna).
 
 %% API
--export([encode/1, encode/2]).
+-export([encode/1, encode/2,
+         decode/1, decode/2]).
 
 %% compatibility API
 -export([to_ascii/1,
@@ -35,6 +36,35 @@ encode(Domain0, Options) ->
         encode_1(Labels, [])
     end.
 
+decode(Domain) ->
+  decode(Domain, []).
+
+decode(Domain0, Options) ->
+  ok = validate_options(Options),
+  Domain = case proplists:get_value(uts46, Options, false) of
+             true ->
+               STD3Rules = proplists:get_value(std3_rules, Options, false),
+               uts46_remap(Domain0, STD3Rules, false);
+             false ->
+               Domain0
+           end,
+  Labels = case proplists:get_value(strict, Options, false) of
+             false ->
+               re:split(lowercase(Domain), "[.。．｡]", [{return, list}, unicode]);
+             true ->
+                string:tokens(lowercase(Domain), ".")
+           end,
+
+  case Labels of
+      [] -> exit(empty_domain);
+      _ ->
+        decode_1(Labels, [])
+    end.
+
+
+%% Compatibility API
+%%
+
 to_ascii(Domain) -> encode(Domain, [uts46]).
 
 
@@ -43,7 +73,7 @@ utf8_to_ascii(Domain) ->
 
 -spec from_ascii(nonempty_string()) -> nonempty_string().
 from_ascii(Domain) ->
-    from_ascii(string:tokens(Domain, "."), []).
+    decode(Domain).
 
 
 %% Helper functions
@@ -67,7 +97,6 @@ encode_1([Label|Labels], []) ->
 encode_1([Label|Labels], Acc) ->
     encode_1(Labels, lists:reverse(alabel(Label), [$.|Acc])).
 
-
 check_nfc(Label) ->
   case characters_to_nfc_list(Label) of
     Label -> ok;
@@ -87,8 +116,6 @@ check_hyphen(Label) ->
       ok
   end.
 
-
-
 check_label(Label) ->
   ok = check_nfc(Label),
   ok = check_hyphen(Label),
@@ -103,16 +130,19 @@ alabel(Label) ->
             ?ACE_PREFIX ++ punycode:encode(Label)
     end.
 
-from_ascii([], Acc) ->
-    lists:reverse(Acc);
-from_ascii([Label|Labels], []) ->
-    from_ascii(Labels, lists:reverse(label_from_ascii(Label)));
-from_ascii([Label|Labels], Acc) ->
-    from_ascii(Labels, lists:reverse(label_from_ascii(Label), [$.|Acc])).
+decode_1([], Acc) ->
+    list:reverse(Acc);
+decode_1([Label|Labels], []) ->
+    decode_1(Labels, lists:reverse(ulabel(Label)));
+decode_1([Label|Labels], Acc) ->
+    decode_1(Labels, lists:reverse(ulabel(Label), [$.|Acc])).
 
-label_from_ascii(?ACE_PREFIX ++ Label) ->
-    punycode:decode(Label);
-label_from_ascii(Label) ->
+ulabel(?ACE_PREFIX ++ Label0) ->
+    Label = punycode:decode(Label0),
+    ok = check_label(Label),
+    Label;
+ulabel(Label) ->
+    ok = check_label(Label),
     Label.
 
 
