@@ -29,11 +29,11 @@ is_ascii(_) -> false.
 
 from_utf8(Bin) when is_binary(Bin) -> from_utf8(binary_to_list(Bin));
 from_utf8(List) ->
-    case expand_utf8(List) of
-        {Result,0} -> Result;
-        {_Res,_NumBadChar} ->
-            exit({ucs,{bad_utf8_character_code}})
-    end.
+  case expand_utf8(List) of
+    {Result,0} -> Result;
+    {_Res,_NumBadChar} ->
+      exit({ucs,{bad_utf8_character_code}})
+  end.
 
 %% expand_utf8([Byte]) -> {[UnicodeChar],NumberOfBadBytes}
 %% Expand UTF8 byte sequences to ISO 10646/Unicode
@@ -44,44 +44,44 @@ from_utf8(List) ->
 %% RFC 3629: "UTF-8, a transformation format of ISO 10646".
 
 expand_utf8(Str) ->
-    expand_utf8_1(Str, [], 0).
+  expand_utf8_1(Str, [], 0).
 
 expand_utf8_1([C|Cs], Acc, Bad) when C < 16#80 ->
-    %% Plain Ascii character.
-    expand_utf8_1(Cs, [C|Acc], Bad);
+  %% Plain Ascii character.
+  expand_utf8_1(Cs, [C|Acc], Bad);
 expand_utf8_1([C1,C2|Cs], Acc, Bad) when C1 band 16#E0 =:= 16#C0,
                                          C2 band 16#C0 =:= 16#80 ->
-    case ((C1 band 16#1F) bsl 6) bor (C2 band 16#3F) of
-        C when 16#80 =< C ->
-            expand_utf8_1(Cs, [C|Acc], Bad);
-        _ ->
-            %% Bad range.
-            expand_utf8_1(Cs, Acc, Bad+1)
-    end;
+  case ((C1 band 16#1F) bsl 6) bor (C2 band 16#3F) of
+    C when 16#80 =< C ->
+      expand_utf8_1(Cs, [C|Acc], Bad);
+    _ ->
+      %% Bad range.
+      expand_utf8_1(Cs, Acc, Bad+1)
+  end;
 expand_utf8_1([C1,C2,C3|Cs], Acc, Bad) when C1 band 16#F0 =:= 16#E0,
                                             C2 band 16#C0 =:= 16#80,
                                             C3 band 16#C0 =:= 16#80 ->
-    case ((((C1 band 16#0F) bsl 6) bor (C2 band 16#3F)) bsl 6) bor
-        (C3 band 16#3F) of
-        C when 16#800 =< C ->
-            expand_utf8_1(Cs, [C|Acc], Bad);
-        _ ->
-            %% Bad range.
-            expand_utf8_1(Cs, Acc, Bad+1)
-    end;
+  case ((((C1 band 16#0F) bsl 6) bor (C2 band 16#3F)) bsl 6) bor
+       (C3 band 16#3F) of
+    C when 16#800 =< C ->
+      expand_utf8_1(Cs, [C|Acc], Bad);
+    _ ->
+      %% Bad range.
+      expand_utf8_1(Cs, Acc, Bad+1)
+  end;
 expand_utf8_1([C1,C2,C3,C4|Cs], Acc, Bad) when C1 band 16#F8 =:= 16#F0,
                                                C2 band 16#C0 =:= 16#80,
                                                C3 band 16#C0 =:= 16#80,
                                                C4 band 16#C0 =:= 16#80 ->
-    case ((((((C1 band 16#0F) bsl 6) bor (C2 band 16#3F)) bsl 6) bor
-           (C3 band 16#3F)) bsl 6) bor (C4 band 16#3F) of
-        C when 16#10000 =< C ->
-            expand_utf8_1(Cs, [C|Acc], Bad);
-        _ ->
-            %% Bad range.
-            expand_utf8_1(Cs, Acc, Bad+1)
-    end;
+  case ((((((C1 band 16#0F) bsl 6) bor (C2 band 16#3F)) bsl 6) bor
+         (C3 band 16#3F)) bsl 6) bor (C4 band 16#3F) of
+    C when 16#10000 =< C ->
+      expand_utf8_1(Cs, [C|Acc], Bad);
+    _ ->
+      %% Bad range.
+      expand_utf8_1(Cs, Acc, Bad+1)
+  end;
 expand_utf8_1([_|Cs], Acc, Bad) ->
-    %% Ignore bad character.
-    expand_utf8_1(Cs, Acc, Bad+1);
+  %% Ignore bad character.
+  expand_utf8_1(Cs, Acc, Bad+1);
 expand_utf8_1([], Acc, Bad) -> {lists:reverse(Acc),Bad}.
