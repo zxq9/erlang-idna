@@ -15,7 +15,6 @@ encode(Domain) ->
 
 encode(Domain0, Options) ->
     ok = validate_options(Options),
-
     Domain = case proplists:get_value(uts46, Options, false) of
                true ->
                  STD3Rules = proplists:get_value(std3_rules, Options, false),
@@ -23,7 +22,6 @@ encode(Domain0, Options) ->
                  uts46_remap(Domain0, STD3Rules, Transitional);
                false -> Domain0
              end,
-
     Labels = case proplists:get_value(strict, Options, false) of
                false ->
                  re:split(lowercase(Domain), "[.。．｡]", [{return, list}, unicode]);
@@ -69,7 +67,35 @@ encode_1([Label|Labels], []) ->
 encode_1([Label|Labels], Acc) ->
     encode_1(Labels, lists:reverse(alabel(Label), [$.|Acc])).
 
+
+check_nfc(Label) ->
+  case characters_to_nfc_list(Label) of
+    Label -> ok;
+    _ ->
+      erlang:exit({bad_label, {nfc, "Label must be in Normalization Form C"}})
+  end.
+
+check_hyphen([_, _, $-, $-|_]) ->
+  erlang:exit({bad_label, {hyphen, "Label has disallowed hyphens in 3rd and 4th position"}});
+check_hyphen([$- | _]) ->
+   erlang:exit({bad_label, {hyphen, "Label must not start with an hyphen"}});
+check_hyphen(Label) ->
+  case lists:last(Label) of
+    "-" ->
+      erlang:exit({bad_label, {hyphen, "Label must not end with an hyphen"}});
+    _ ->
+      ok
+  end.
+
+
+
+check_label(Label) ->
+  ok = check_nfc(Label),
+  ok = check_hyphen(Label),
+  ok.
+
 alabel(Label) ->
+    ok = check_label(Label),
     case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label) of
         true ->
             Label;
