@@ -150,6 +150,13 @@ punicode_encode_test() ->
       ?assertEqual(Expect, punycode:encode(Input))
     end,
     data()
-
   ).
 
+punicode_decode_test() ->
+  lists:foreach(
+    fun({_Descr, Expect, Input}) ->
+      ?debugFmt("decode ~p~n", [_Descr]),
+      ?assertEqual(Expect, punycode:decode(Input))
+    end,
+    data()
+  ).
