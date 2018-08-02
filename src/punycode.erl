@@ -1,4 +1,7 @@
+%% @doc Punycode ([RFC 3492](http://tools.ietf.org/html/rfc3492)) implementation.
+
 -module(punycode).
+
 
 -export([encode/1,
          decode/1]).
