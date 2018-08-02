@@ -6,11 +6,6 @@
 -export([encode/1,
          decode/1]).
 
-
-%%============================================================================
-%% Constants
-%%============================================================================
-
 -define(BASE, 36).
 -define(TMIN, 1).
 -define(TMAX, 26).
@@ -53,7 +48,6 @@ encode(Input, Output, H, B, N, Delta, Bias) when H < length(Input) ->
 encode(_, Output, _, _, _, _, _) ->
   Output.
 
-
 encode1([C|Rest], Output, H, B, N, Delta, Bias) when C < N ->
   Delta2 = Delta + 1,
   case Delta2 of
@@ -67,7 +61,6 @@ encode1([_|Rest], Output, H, B, N, Delta, Bias) ->
   encode1(Rest, Output, H, B, N, Delta, Bias);
 encode1([], Output, H, _B, N, Delta, Bias) ->
   {Output, H, Delta + 1, N +1, Bias}.
-
 
 encode2(Rest, Output, H, B, N, Delta, Bias, Q, K) ->
   T = if
@@ -90,14 +83,13 @@ encode2(Rest, Output, H, B, N, Delta, Bias, Q, K) ->
       encode2(Rest, Output2, H, B, N, Delta, Bias, Q2, K + ?BASE)
   end.
 
-
 to_digit(V) when V >= 0, V =< 25 -> V + $a;
 to_digit(V) when V >= 26, V =< 35 -> V - 26 + $0;
 to_digit(_) -> exit(badarg).
 
 
 %% @doc Convert Punycode to Unicode.
-%% exit with an oveflow or badarg erros if malformed or overrflow.
+%% exit with an overflow or badarg errors if malformed or overflow.
 %% Overflow can only happen on inputs that take more than 63 encoded bytes,
 %% the DNS limit on domain name labels.
 -spec decode(string()) -> string().
@@ -120,7 +112,6 @@ decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
          false -> I0 + (Digit * Weight);
          true -> exit(overflow)
        end,
-
   T = if
         K =< Bias -> ?TMIN;
         K >= (Bias + ?TMAX) -> ?TMAX;
@@ -136,7 +127,6 @@ decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
                   true ->
                     exit(overflow)
                 end,
-
       {Head, Tail} = lists:split(I2, Output),
       Output2 = Head ++ [N2] ++ Tail,
       decode(Rest, Output2, N2, Bias2, I2+1);
@@ -148,7 +138,6 @@ decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
           exit(overflow)
       end
   end.
-
 
 digit(C) when C >= $0, C =< $9 -> C - $0 + 26;
 digit(C) when C >= $A, C =< $Z -> C - $A;
