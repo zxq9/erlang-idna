@@ -19,72 +19,85 @@
 
 
 -define(MAX, 1 bsl 32 - 1).
-%%============================================================================
-%% Encoding algorithm state
-%%============================================================================
 
--record(encode, {n=?INITIAL_N, delta=0, bias=?INITIAL_BIAS, h, b}).
--record(decode, {n=?INITIAL_N, delta=0, bias=?INITIAL_BIAS, i=0, k, w}).
-
-%%============================================================================
-%% API
-%%============================================================================
-
+%% @doc Convert Unicode to Punycode.
+%%
+%% exit with an overflow error on overflow, which can only happen on inputs
+%% that would take more than 63 encoded bytes, the DNS limit on domain name labels.
+-spec encode(string()) -> string().
 encode(Input) ->
-  encode(Input, lists:reverse(lists:filter(fun(C) -> C < 16#80 end, Input))).
+  Output0 = lists:filtermap(fun
+                             (C) when C < 16#80 -> {true, C};
+                             (_) -> false
+                           end, Input),
+  B = length(Output0),
+  Output = case B > 0 of
+             true -> Output0 ++ [?DELIMITER];
+             false -> Output0
+           end,
+  H = B,
+  encode(Input, Output, H, B, ?INITIAL_N, 0, ?INITIAL_BIAS).
 
 
-%%============================================================================
-%% Helper functions
-%%============================================================================
-
-encode(Input, Basic) ->
-  case length(Basic) of
-    0 -> encode_whileloop(Input, [], #encode{h=0, b=0});
-    N -> encode_whileloop(Input, [?DELIMITER|Basic], #encode{h=N, b=N})
-  end.
-
-encode_whileloop(Input, Output, State=#encode{h=H}) when H < length(Input) ->
-  N = State#encode.n,
+encode(Input, Output, H, B, N, Delta, Bias) when H < length(Input) ->
   M = lists:min(lists:filter(fun(C) -> C >= N end, Input)),
-  Delta = State#encode.delta + (M - N) * (H + 1),
-  {Output2, State2=#encode{delta=Delta2, n=N2}} = encode_foreachloop(Input, Output, State#encode{delta=Delta, n=M}),
-  encode_whileloop(Input, Output2, State2#encode{delta=Delta2 + 1, n=N2 + 1});
-encode_whileloop(_, Output, _) ->
-  lists:reverse(Output).
+  Delta1 = case (M - N) > ((?MAX - Delta) / (H +1)) of
+             false -> Delta +  (M - N) * (H + 1);
+             true -> exit(oveflow)
+           end,
+  {Output2, H2, Delta2, N2, Bias2} = encode1(Input, Output, H, B, M, Delta1, Bias),
+  encode(Input, Output2, H2, B, N2, Delta2, Bias2);
+encode(_, Output, _, _, _, _, _) ->
+  Output.
 
-encode_foreachloop([], Output, State) ->
-  {Output, State};
-encode_foreachloop([C|Input], Output, State=#encode{n=N, delta=Delta}) when C < N ->
-  encode_foreachloop(Input, Output, State#encode{delta=Delta + 1});
-encode_foreachloop([C|Input], Output, State=#encode{n=N, delta=Delta, h=H, b=B, bias=Bias}) when C =:= N ->
-  {Output2, Q} = encode_forloop(Output, ?BASE, Delta, Bias),
-  Bias2 = adapt(Delta, H + 1, H =:= B),
-  encode_foreachloop(Input, [encode_digit(Q)|Output2], State#encode{delta=0, h=H + 1, bias=Bias2});
-encode_foreachloop([_|Input], Output, State) ->
-  encode_foreachloop(Input, Output, State).
 
-encode_forloop(Output, K, Q, Bias) ->
-  T = case K =< Bias of
-        true ->
-          ?TMIN;
-        false ->
-          case K >= (Bias + ?TMAX) of true -> ?TMAX; false -> (K - Bias) end
+encode1([C|Rest], Output, H, B, N, Delta, Bias) when C < N ->
+  Delta2 = Delta + 1,
+  case Delta2 of
+    0 -> exit(oveflow);
+    _ ->
+      encode1(Rest, Output, H, B, N, Delta2, Bias)
+  end;
+encode1([C|Rest], Output, H, B, N, Delta, Bias) when C == N ->
+  encode2(Rest, Output, H, B, N, Delta, Bias, Delta, ?BASE);
+encode1([_|Rest], Output, H, B, N, Delta, Bias) ->
+  encode1(Rest, Output, H, B, N, Delta, Bias);
+encode1([], Output, H, _B, N, Delta, Bias) ->
+  {Output, H, Delta + 1, N +1, Bias}.
+
+
+encode2(Rest, Output, H, B, N, Delta, Bias, Q, K) ->
+  T = if
+        K =< Bias -> ?TMIN;
+        K >= (Bias + ?TMAX) -> ?TMAX;
+        true -> K - Bias
       end,
-  case Q < T of
+  case  Q < T of
     true ->
-      {Output, Q};
+      CodePoint = to_digit(Q),
+      Output2 = Output ++ [CodePoint],
+      Bias2 = adapt(Delta, H +1, H == B),
+      Delta2 = 0,
+      H2 = H + 1,
+      encode1(Rest, Output2, H2, B, N, Delta2, Bias2);
     false ->
-      Digit = encode_digit(T + ((Q - T) rem (?BASE - T))),
-      encode_forloop([Digit|Output], K + ?BASE, (Q - T) div (?BASE - T), Bias)
+      CodePoint = to_digit(T + ((Q - T) rem (?BASE - T))),
+      Output2 = Output ++ [CodePoint],
+      Q2 = (Q - T) div (?BASE - T),
+      encode2(Rest, Output2, H, B, N, Delta, Bias, Q2, K + ?BASE)
   end.
 
-encode_digit(N) when N < 26 ->
-  N + 22 + 75;
-encode_digit(N) ->
-  N + 22.
+
+to_digit(V) when V >= 0, V =< 25 -> V + $a;
+to_digit(V) when V >= 26, V =< 35 -> V - 26 + $0;
+to_digit(_) -> exit(badarg).
 
 
+%% @doc Convert Punycode to Unicode.
+%% exit with an oveflow or badarg erros if malformed or overrflow.
+%% Overflow can only happen on inputs that take more than 63 encoded bytes,
+%% the DNS limit on domain name labels.
+-spec decode(string()) -> string().
 decode(Input) ->
   {Output, Input2} = case string:rstr(Input, [?DELIMITER]) of
              0 -> {"", Input};
@@ -136,8 +149,8 @@ decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
 
 digit(C) when C >= $0, C =< $9 -> C - $0 + 26;
 digit(C) when C >= $A, C =< $Z -> C - $A;
-digit(C) when C >= $a, C =< $z -> C - $a.
-
+digit(C) when C >= $a, C =< $z -> C - $a;
+digit(_) -> exit(badarg).
 
 adapt(Delta, NumPoints, FirstTime) ->
   Delta2 = case FirstTime of
