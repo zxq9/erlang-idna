@@ -3,6 +3,7 @@
 %% see ../uc_spec/gen_unicode_mod.escript
 
 -module(idna_mapping).
+-compile(compressed).
 -export([uts46_map/1]).
 uts46_map(47) -> {disallowed_std3_valid, undefined, undefined};
 uts46_map(65) -> {mapped, [97], undefined};

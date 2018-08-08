@@ -6,10 +6,21 @@
 
 -define(MOD, "idna_mapping").
 
+-export([main/1]).
+
+-ifdef('OTP_RELEASE').
+-define(trim(Str), string:trim(Str, both)).
+-define(lexemes(Str, Pat), string:lexemes(Str, Pat)).
+-define(lower(C), string:lowercase(C)).
+-else.
+-define(trim(Str), string:strip(Str, both)).
+-define(lexemes(Str, Pat), string:strip(string:tokens(Str, Pat), both)).
+-define(lower(C), string:to_lower(C)).
+-endif.
 
 
 main(_) ->
-  {ok, IM} = file:open("../uc_spec/IdnaMappingTable.txt", [read, raw, {read_ahead, 1000000}]),
+  {ok, IM} = file:open("../uc_spec/IdnaMappingTable.txt", [read, raw, {read_ahead, 1000000}]),
   Data = foldl(fun parse_idna_mapping/2, [], IM),
   file:close(IM),
 
@@ -25,28 +36,21 @@ parse_idna_mapping(Line0, Acc) ->
   [Line|_Comments] = tokens(Line0, "#"),
   case tokens(Line, ";") of
     [CodePoints, Status] ->
-      [{to_range(CodePoints), to_atom(Status), undefined, undefined} | Acc];
+      [{to_range(CodePoints), to_atom(Status), undefined, undefined} | Acc];
     [CodePoints, Status, Mapping] ->
-      [{to_range(CodePoints), to_atom(Status), to_mapping(Mapping), undefined} | Acc];
+      [{to_range(CodePoints), to_atom(Status), to_mapping(Mapping), undefined} | Acc];
     [CodePoints, Status, Mapping, Idna2008Status] ->
-      [{to_range(CodePoints), to_atom(Status), to_mapping(Mapping), to_atom(Idna2008Status)} | Acc]
+      [{to_range(CodePoints), to_atom(Status), to_mapping(Mapping), to_atom(Idna2008Status)} | Acc]
   end.
 
-
--ifdef('OTP_RELEASE').
 to_mapping(Mapping) ->
-  [hex_to_int(C) || C <- string:lexemes(Mapping, " ")].
--else.
-to_mapping(Mapping) ->
-  [hex_to_int(C) || C <- string:strip(string:tokens(Mapping, " "), both)].
--endif.
-
+  [hex_to_int(C) || C <- ?lexemes(Mapping, " ")].
 
 to_range(CodePoints0) ->
   case tokens(CodePoints0, ".") of
     [CodePoint] ->
       {hex_to_int(CodePoint), undefined};
-    [CodePoint1, "", CodePoint2] ->
+    [CodePoint1, "", CodePoint2] ->
       {hex_to_int(CodePoint1), hex_to_int(CodePoint2)}
   end.
 
@@ -61,6 +65,7 @@ gen_header(Fd) ->
   io:put_chars(Fd, "%%\n%% this file is generated do not modify\n"),
   io:put_chars(Fd, "%% see ../uc_spec/gen_unicode_mod.escript\n\n"),
   io:put_chars(Fd, "-module(" ++ ?MOD ++").\n"),
+  io:put_chars(Fd, "-compile(compressed).\n"),
   io:put_chars(Fd, "-export([uts46_map/1]).\n"),
   ok.
 
@@ -89,21 +94,12 @@ optimize_ranges(Rs0) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--ifdef('OTP_RELEASE').
 hex_to_int([]) -> [];
 hex_to_int(HexStr) ->
-  list_to_integer(string:trim(HexStr, both), 16).
+  list_to_integer(?trim(HexStr), 16).
 
 to_atom(Str) ->
-  list_to_atom(string:lowercase(string:trim(Str, both))).
--else.
-hex_to_int([]) -> [];
-hex_to_int(HexStr) ->
-  list_to_integer(string:strip(HexStr, both), 16).
-
-to_atom(Str) ->
-  list_to_atom(string:to_lower(string:strip(Str, both))).
--endif.
+  list_to_atom(?lower(?trim(Str))).
 
 foldl(Fun, Acc, Fd) ->
   Get = fun() -> file:read_line(Fd) end,
