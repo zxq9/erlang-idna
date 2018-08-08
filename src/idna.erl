@@ -9,6 +9,11 @@
          utf8_to_ascii/1,
          from_ascii/1]).
 
+
+-export([check_hyphen/1, check_nfc/1]).
+
+-export([check_label/1]).
+
 -define(ACE_PREFIX, "xn--").
 
 encode(Domain) ->
@@ -119,6 +124,7 @@ check_hyphen(Label) ->
 check_label(Label) ->
   ok = check_nfc(Label),
   ok = check_hyphen(Label),
+  ok = idna_bidi:check_bidi(Label),
   ok.
 
 alabel(Label) ->
