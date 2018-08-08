@@ -16,33 +16,33 @@ check_bidi(Label) -> check_bidi(Label, false).
 
 check_bidi(Label, CheckLtr) ->
   %% Bidi rules should only be applied if string contains RTL characters
-  case {check_rtl(Label), CheckLtr} of
+  case {check_rtl(Label, Label), CheckLtr} of
     {false, false}  -> true;
     _ ->
       [C | Rest] = Label,
       % bidi rule 1
-      RTL = rtl(C),
+      RTL = rtl(C, Label),
       check_bidi1(Rest, RTL, false, undefined)
   end.
 
-check_rtl([C | Rest]) ->
+check_rtl([C | Rest], Label) ->
   case idna_data:lookup(C) of
     false ->
-      erlang:exit({bad_label, {bidi, "unknown directionality in label"}});
+      erlang:exit(bidi_error("unknown directionality in label=~p c=~w~n", [Label, C]));
     {_, Dir} ->
       case lists:member(Dir, ["R", "AL", "AN"]) of
-        true -> check_rtl(Rest);
+        true -> check_rtl(Rest, Label);
         false -> false
       end
   end.
 
-rtl(C) ->
+rtl(C, Label) ->
   case idna_data:lookup(C) of
     {_, "R"} -> true;
     {_, "AL"} -> true;
     {_, "L"} -> false;
     _ ->
-      erlang:exit({bad_label, {bidi, "first codepoint must be directionality L, R or AL"}})
+      erlang:exit(bidi_error("first codepoint in label ~p must be directionality L, R or AL ", [Label]))
   end.
 
 
@@ -90,3 +90,6 @@ check_bidi1([], _, false, _) ->
 check_bidi1([], _, true, _) ->
   ok.
 
+bidi_error(Msg, Fmt) ->
+  ErrorMsg = lists:flatten(io_lib:format(Msg, Fmt)),
+  {bad_label, {bidi, ErrorMsg}}.

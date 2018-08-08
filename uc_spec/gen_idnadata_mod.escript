@@ -69,11 +69,11 @@ gen_lookup(Fd, Data) ->
 gen_joining_types(Fd, JoiningTypes) ->
   lists:foreach(
     fun({Cp, Jt}) ->
-      io:format(Fd, "joining_types(~w) -> ~p;~n", [Cp, ?lower(?trim(Jt, both))])
+      io:format(Fd, "joining_types(~w) -> ~p;~n", [Cp, ?trim(Jt, both)])
     end,
     lists:sort(JoiningTypes)
   ),
-  io:put_chars(Fd, "joining_types(_) -> no_joining_group.\n").
+  io:put_chars(Fd, "joining_types(_) -> undefined.\n").
 
 gen_scripts_types(Fd, Scripts) ->
   lists:foreach(
@@ -103,13 +103,13 @@ gen_single_clause({R0, R1}) ->
 
 parse_unicode_data(Line0, Acc) ->
   Line = ?chomp(Line0),
-  [CodePoint, _Name, _Cat, Class, BiDi |_] = tokens(Line, ";"),
-  [{hex_to_int(CodePoint), {to_class(Class), ?trim(BiDi, both)}} | Acc].
+  [CodePoint, _Name, Cat, _Class, BiDi |_] = tokens(Line, ";"),
+  [{hex_to_int(CodePoint), {?trim(Cat, both), ?trim(BiDi, both)}} | Acc].
 
 parse_as(Line0, Acc) ->
   Line = ?chomp(Line0),
   case tokens(Line, ";") of
-    [CodePoint, _, _, JT] ->
+    [CodePoint, _,JT|_] ->
       [{hex_to_int(CodePoint), ?trim(JT, both) } | Acc];
     _ ->
       Acc
@@ -127,10 +127,6 @@ parse_scripts(Line0, Acc) ->
   end.
 
 
-
-to_class(String) ->
-  list_to_integer(?trim(String, both)).
-
 to_range(CodePoints0) ->
   case tokens(CodePoints0, ".") of
     [CodePoint] ->
@@ -144,7 +140,7 @@ hex_to_int(HexStr) ->
   list_to_integer(?trim(HexStr, both), 16).
 
 to_atom(Str) ->
-  list_to_atom(?lower(Str)).
+  list_to_atom(?trim(Str, both)).
 
 
 foldl(Fun, Acc, Fd) ->

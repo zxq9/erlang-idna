@@ -5,11 +5,12 @@
 -module(idna_table).
 -compile(compressed).
 -export([lookup/1]).
--export([disallowed_p/1, contextj_p/1, contexto_p/1, unassigned_p/1]).
+-export([disallowed_p/1, contextj_p/1, contexto_p/1, unassigned_p/1, valid_p/1]).
 disallowed_p(CP) -> lookup(CP) == 'DISALLOWED'.
 contextj_p(CP) -> lookup(CP) == 'CONTEXTJ'.
 contexto_p(CP) -> lookup(CP) == 'CONTEXTO'.
 unassigned_p(CP) -> lookup(CP) == 'UNASSIGNED'.
+valid_p(CP) -> lookup(CP) == 'PVALID'.
 lookup(45) -> 'PVALID';
 lookup(183) -> 'CONTEXTO';
 lookup(247) -> 'DISALLOWED';

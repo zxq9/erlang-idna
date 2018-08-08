@@ -10,7 +10,7 @@
          from_ascii/1]).
 
 
--export([check_hyphen/1, check_nfc/1]).
+-export([check_hyphen/1, check_nfc/1, check_context/1, check_initial_combiner/1]).
 
 -export([check_label/1]).
 
@@ -121,9 +121,49 @@ check_hyphen(Label) ->
       ok
   end.
 
+check_initial_combiner([CP|_]) ->
+  case idna_data:lookup(CP) of
+    {[$M|_], _} ->
+      erlang:exit({bad_label, {initial_combiner, "Label begins with an illegal combining character"}});
+    _ ->
+      ok
+  end.
+
+check_context(Label) -> check_context(Label, Label, 1).
+
+check_context([CP | Rest], Label, Pos) ->
+  case idna_table:lookup(CP) of
+    'PVALID' ->
+      check_context(Rest, Label, Pos+1);
+    'CONTEXTJ' ->
+      case idna_context:valid_contextj(CP, Label, Pos) of
+        true ->
+          check_context(Rest, Label, Pos+1);
+        false ->
+          ErrorMsg = io:format("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+          erlang:exit({bad_label, {contextj, ErrorMsg}})
+
+      end;
+    'CONTEXTO' ->
+      case idna_context:valid_contexto(CP, Label, Pos) of
+        true ->
+          check_context(Rest, Label, Pos+1);
+        false ->
+          ErrorMsg = io:format("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+          erlang:exit({bad_label, {contextj, ErrorMsg}})
+      end;
+    _ ->
+      ErrorMsg = io:format("Codepoint ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+      erlang:exit({bad_label, {contextj, ErrorMsg}})
+  end;
+check_context([], _, _) ->
+  ok.
+
 check_label(Label) ->
   ok = check_nfc(Label),
   ok = check_hyphen(Label),
+  ok = check_initial_combiner(Label),
+  ok = check_context(Label),
   ok = idna_bidi:check_bidi(Label),
   ok.
 

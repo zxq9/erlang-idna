@@ -42,6 +42,7 @@ gen_file(Fd, Data) ->
   gen_contextj_p(Fd),
   gen_contexto_p(Fd),
   gen_unassigned_p(Fd),
+  gen_valid_p(Fd),
   gen_lookup(Fd, Data),
   ok.
 
@@ -52,7 +53,7 @@ gen_header(Fd) ->
   io:put_chars(Fd, "-module(" ++ ?MOD ++").\n"),
   io:put_chars(Fd, "-compile(compressed).\n"),
   io:put_chars(Fd, "-export([lookup/1]).\n"),
-  io:put_chars(Fd, "-export([disallowed_p/1, contextj_p/1, contexto_p/1, unassigned_p/1]).\n"),
+  io:put_chars(Fd, "-export([disallowed_p/1, contextj_p/1, contexto_p/1, unassigned_p/1, valid_p/1]).\n"),
   ok.
 
 gen_disallowed_p(Fd) ->
@@ -66,6 +67,10 @@ gen_contexto_p(Fd) ->
 
 gen_unassigned_p(Fd) ->
   io:put_chars(Fd, "unassigned_p(CP) -> lookup(CP) == 'UNASSIGNED'.\n").
+
+gen_valid_p(Fd) ->
+  io:put_chars(Fd, "valid_p(CP) -> lookup(CP) == 'PVALID'.\n").
+
 
 
 gen_lookup(Fd, Data) ->
