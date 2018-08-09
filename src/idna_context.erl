@@ -11,36 +11,50 @@
 
 %% API
 -export([
-  valid_contextj/3,
+valid_contextj/2, valid_contextj/3,
   valid_contexto/3,
   contexto_with_rule/1
 ]).
 
 -define(virama_combining_class, 9).
 
-valid_contextj(16#200c, Label, Pos) when Pos > 0 ->
-      case unicode_util_compat:lookup(lists:nth(Pos -1, Label)) of
-        #{ ccc := ?virama_combining_class } -> true;
-        _ ->
-          case range(lists:reverse(lists:sublist(Label, 1, Pos -1))) of
-            false -> fales;
-            true ->
-              range(lists:nthtail(Label, Pos +1))
-          end
-      end;
+
+valid_contextj([], _Pos)  -> ok;
+valid_contextj(Label, Pos) ->
+  CP = lists:nth(Pos + 1, Label),
+  valid_contextj(CP, Label, Pos).
+
+
 valid_contextj(16#200c, Label, Pos) ->
-  case range(lists:reverse(lists:sublist(Label, 1, Pos -1))) of
-    false -> fales;
+  if
+     Pos > 0 ->
+       case unicode_util_compat:lookup(lists:nth(Pos, Label)) of
+         #{ ccc := ?virama_combining_class } -> true;
+         _ ->
+           valid_contextj_1(Label, Pos)
+       end;
     true ->
-      range(lists:nthtail(Label, Pos +1))
+      valid_contextj_1(Label, Pos)
   end;
-valid_contextj(16#200d, Label, Pos) when Pos > 0->
-  case unicode_util_compat:lookup(lists:nth(Pos -1, Label)) of
+
+valid_contextj(16#200d, Label, Pos) when Pos > 0 ->
+  case unicode_util_compat:lookup(lists:nth(Pos, Label)) of
     #{ ccc := ?virama_combining_class } -> true;
     _ -> false
   end;
 valid_contextj(_, _, _) ->
   false.
+
+
+valid_contextj_1(Label, Pos) ->
+  case range(lists:reverse(lists:nthtail(Pos, Label))) of
+    true ->
+      range(lists:nthtail(Pos+2, Label));
+    false ->
+      false
+  end.
+
+
 
 
 range([CP|Rest]) ->
@@ -62,7 +76,7 @@ valid_contexto(CP, Label, Pos) ->
       if
         (Pos > 0); (Pos < (Len -1)) -> false;
         true ->
-          case lists:sublist(Label, Pos - 1, Pos +1) of
+          case lists:sublist(Label, Pos, Pos +2) of
             [16#006C, _, 16#006C] -> true;
             _ -> false
           end
@@ -72,7 +86,7 @@ valid_contexto(CP, Label, Pos) ->
       if
         (Pos < (Len -1)), Len > 1 -> false;
         true ->
-          case idna_data:scripts(lists:nth(Pos +1, Label)) of
+          case idna_data:scripts(lists:nth(Pos + 2, Label)) of
             "Greek" -> true;
             _ -> false
           end
@@ -81,7 +95,7 @@ valid_contexto(CP, Label, Pos) ->
       % HEBREW PUNCTUATION GERESH or HEBREW PUNCTUATION GERSHAYIM
       if
         Pos > 0 ->
-          case idna_data:scripts(lists:nth(Pos - 1, Label)) of
+          case idna_data:scripts(lists:nth(Pos, Label)) of
             "Hebrew" -> true;
             _ -> false
           end;

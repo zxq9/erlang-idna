@@ -9,14 +9,6 @@
 -module(idna_test).
 -author("benoitc").
 
-%% API
--export([
-  alabels_test/0,
-  ulabels_test/0,
-  check_label_length_test/0,
-  check_bidi_test/0
-]).
-
 
 -define(tld_strings, [
   {[16#6d4b,16#8bd5], "xn--0zwm56d"},
@@ -157,3 +149,35 @@ check_bidi_test() ->
   ok = idna_bidi:check_bidi(L ++ EN ++ NSM, true),
   ok = idna_bidi:check_bidi(L ++ EN ++ NSM ++ NSM, true),
   ?assertExit({bad_label, {bidi, _}}, idna_bidi:check_bidi(L ++ CS, true)).
+
+check_initial_combiner_test() ->
+  M = [16#0300],
+  A = [16#0061],
+
+  ok = idna:check_initial_combiner(A),
+  ok = idna:check_initial_combiner(A ++ M),
+  ?assertExit({bad_label, {initial_combiner, _}},idna:check_initial_combiner(M ++ A)).
+
+check_hyphen_test() ->
+  ok  = idna:check_hyphen("abc"),
+  ok  = idna:check_hyphen("a--b"),
+  ?assertExit({bad_label, {hyphen, _}},idna:check_hyphen("aa--")),
+  ?assertExit({bad_label, {hyphen, _}},idna:check_hyphen("a-")),
+  ?assertExit({bad_label, {hyphen, _}},idna:check_hyphen("-a")).
+
+
+valid_contextj_test() ->
+  Zwnj = [16#200c],
+  Zwj = [16#200d],
+  Virama = [16#094d],
+  Latin = [16#0061],
+
+  % RFC 5892 Appendix A.1 (Zero Width Non-Joiner)
+  false = idna_context:valid_contextj(Zwnj, 0),
+  false = idna_context:valid_contextj(Latin ++ Zwnj, 1),
+  true = idna_context:valid_contextj(Virama ++ Zwnj, 1),
+
+  % RFC 5892 Appendix A.2 (Zero Width Joiner)
+  false = idna_context:valid_contextj(Zwj, 0),
+  false = idna_context:valid_contextj(Latin ++ Zwj, 1),
+  true = idna_context:valid_contextj(Virama ++ Zwj, 1).

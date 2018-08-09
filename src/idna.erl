@@ -148,11 +148,11 @@ check_context(Label) -> check_context(Label, Label, 1).
 check_context([CP | Rest], Label, Pos) ->
   case idna_table:lookup(CP) of
     'PVALID' ->
-      check_context(Rest, Label, Pos+1);
+      check_context(Rest, Label, Pos + 1);
     'CONTEXTJ' ->
       case idna_context:valid_contextj(CP, Label, Pos) of
         true ->
-          check_context(Rest, Label, Pos+1);
+          check_context(Rest, Label, Pos + 1);
         false ->
           ErrorMsg = error_msg("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
           erlang:exit({bad_label, {contextj, ErrorMsg}})
@@ -161,7 +161,7 @@ check_context([CP | Rest], Label, Pos) ->
     'CONTEXTO' ->
       case idna_context:valid_contexto(CP, Label, Pos) of
         true ->
-          check_context(Rest, Label, Pos+1);
+          check_context(Rest, Label, Pos + 1);
         false ->
           ErrorMsg = error_msg("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
           erlang:exit({bad_label, {contextj, ErrorMsg}})
