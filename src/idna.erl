@@ -6,6 +6,7 @@
 
 %% compatibility API
 -export([to_ascii/1,
+         to_unicode/1,
          utf8_to_ascii/1,
          from_ascii/1]).
 
@@ -79,6 +80,7 @@ decode(Domain0, Options) ->
 %%
 
 to_ascii(Domain) -> encode(Domain, [uts46]).
+to_unicode(Domain) -> from_ascii(Domain).
 
 
 utf8_to_ascii(Domain) ->
