@@ -19,10 +19,10 @@ check_bidi(Label, CheckLtr) ->
   case {check_rtl(Label, Label), CheckLtr} of
     {false, false}  -> ok;
     _ ->
-      [C | Rest] = Label,
+      [C | _Rest] = Label,
       % bidi rule 1
       RTL = rtl(C, Label),
-      check_bidi1(Rest, RTL, false, undefined)
+      check_bidi1(Label, RTL, false, undefined)
   end.
 
 check_rtl([C | Rest], Label) ->
@@ -51,25 +51,27 @@ rtl(C, Label) ->
 check_bidi1([C | Rest], true, ValidEnding, NumberType) ->
   Dir =  idna_data:bidirectional(C),
   %% bidi rule 2
-  ValidEnding2 = case lists:member(C,  ["R", "AL", "AN", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"]) of
+  ValidEnding2 = case lists:member(Dir, ["R", "AL", "AN", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"]) of
                   true ->
                     % bidi rule 3
-                    case lists:member(C, ["R", "AL", "AN", "EN"]) of
+                    case lists:member(Dir, ["R", "AL", "AN", "EN"]) of
                       true  -> true;
                       false when Dir =/= "NSM" -> false;
                       false -> ValidEnding
                     end;
                   false ->
+                    io:format("dir is ~p~n", [Dir]),
                     erlang:exit({bad_label, {bidi, "Invalid direction for codepoint  in a right-to-left label"}})
                 end,
   % bidi rule 4
-  NumberType2 = case {Dir, NumberType} of
-                 {"AN", undefined} -> Dir;
-                 {"EN", undefined} -> Dir;
-                 {NumberType, NumberType} -> NumberType;
-                 _ ->
-                   erlang:exit({bad_label, {bidi, "Can not mix numeral types in a right-to-left label"}})
-               end,
+  NumberType2 = case lists:member(Dir, ["AN", "EN"]) of
+                  true when NumberType =:= undefined ->
+                    Dir;
+                  true when NumberType /= Dir ->
+                    erlang:exit({bad_label, {bidi, "Can not mix numeral types in a right-to-left label"}});
+                  _ ->
+                    NumberType
+                end,
   check_bidi1(Rest, true, ValidEnding2, NumberType2);
 check_bidi1([C | Rest], false, ValidEnding, NumberType) ->
   Dir =  idna_data:bidirectional(C),

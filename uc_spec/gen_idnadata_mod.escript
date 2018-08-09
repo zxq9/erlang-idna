@@ -27,7 +27,7 @@
   {{16#0600, 16#07BF}, "AL"},
   {{16#0860, 16#086F}, "AL"},
   {{16#08A0, 16#08FF}, "AL"},
-  {{16#FB50, 16#FDC}, "AL"},
+  {{16#FB50, 16#FDCF}, "AL"},
   {{16#FDF0, 16#FDFF}, "AL"},
   {{16#FE70, 16#FEFF}, "AL"},
   {{16#00010D00, 16#00010D3F}, "AL"},
@@ -98,17 +98,18 @@ gen_lookup(Fd, Data) ->
   io:put_chars(Fd, "lookup(_) -> false.\n\n").
 
 gen_bidirectional(Fd) ->
-  lists:foreach(
-    fun({Cp, Class}) ->
-      io:format(Fd, "bidirectional~s ~p;~n", [gen_single_clause(Cp), Class])
-    end,
-    lists:sort(?BIDI_CLASS_DEFAULTS)
-  ),
   io:put_chars(Fd, "bidirectional(CP) ->\n"),
   io:put_chars(Fd, "  case lookup(CP) of \n"),
   io:put_chars(Fd, "    {_, C} -> C;\n"),
-  io:put_chars(Fd, "    false -> \"L\"\n"),
-  io:put_chars(Fd, "  end.\n\n").
+  io:put_chars(Fd, "    false -> bidirectional_1(CP)\n"),
+  io:put_chars(Fd, "  end.\n\n"),
+  lists:foreach(
+    fun({Cp, Class}) ->
+      io:format(Fd, "bidirectional_1~s ~p;~n", [gen_single_clause(Cp), Class])
+    end,
+    lists:sort(?BIDI_CLASS_DEFAULTS)
+  ),
+  io:put_chars(Fd, "bidirectional_1(_) -> \"L\".\n\n").
 
 gen_joining_types(Fd, JoiningTypes) ->
   lists:foreach(
@@ -182,9 +183,6 @@ to_range(CodePoints0) ->
 hex_to_int([]) -> [];
 hex_to_int(HexStr) ->
   list_to_integer(?trim(HexStr, both), 16).
-
-to_atom(Str) ->
-  list_to_atom(?trim(Str, both)).
 
 
 foldl(Fun, Acc, Fd) ->

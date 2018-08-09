@@ -11,7 +11,9 @@
          from_ascii/1]).
 
 
--export([check_hyphen/1, check_nfc/1, check_context/1, check_initial_combiner/1]).
+-export([alabel/1, ulabel/1]).
+
+-export([check_hyphen/1, check_nfc/1, check_context/1, check_initial_combiner/1, check_label_length/1]).
 
 -export([check_label/1]).
 
