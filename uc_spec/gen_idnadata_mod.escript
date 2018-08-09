@@ -20,6 +20,35 @@
 -define(lower(C), string:to_lower(C)).
 -endif.
 
+%% Default `Bidi_Class` for unassigned codepoints.
+%%
+%% Ref: <https://www.unicode.org/Public/UNIDATA/extracted/DerivedBidiClass.txt>
+-define(BIDI_CLASS_DEFAULTS, [
+  {{16#0600, 16#07BF}, "AL"},
+  {{16#0860, 16#086F}, "AL"},
+  {{16#08A0, 16#08FF}, "AL"},
+  {{16#FB50, 16#FDC}, "AL"},
+  {{16#FDF0, 16#FDFF}, "AL"},
+  {{16#FE70, 16#FEFF}, "AL"},
+  {{16#00010D00, 16#00010D3F}, "AL"},
+  {{16#00010F30, 16#00010F6F}, "AL"},
+  {{16#0001EC70, 16#0001ECBF}, "AL"},
+  {{16#0001EE00, 16#0001EEFF}, "AL"},
+  %% Arabic, Syriac, and Thaana blocks, among others
+  {{16#0590, 16#05FF}, "R"},
+  {{16#07C0, 16#085F}, "R"},
+  {{16#0870, 16#089F}, "R"},
+  {{16#FB1D, 16#FB4F}, "R"},
+  {{16#00010800, 16#00010CFF}, "R"},
+  {{16#00010D40, 16#00010F2F}, "R"},
+  {{16#00010F70, 16#00010FFF}, "R"},
+  {{16#0001E800, 16#0001EC6F}, "R"},
+  {{16#0001ECC0, 16#0001EDFF}, "R"},
+  {{16#0001EF00, 16#0001EFFF}, "R"},
+  %% Hebrew, NKo, and Phoenician blocks, among others.
+  {{16#20A0, 16#20CF}, "ET"}
+  %% Currency Symbols block.
+]).
 
 main(_) ->
   {ok, IM} = file:open("../uc_spec/UnicodeData.txt", [read, raw, {read_ahead, 1000000}]),
@@ -43,6 +72,7 @@ main(_) ->
 
 gen_file(Fd, Data, JoiningTypes, Scripts) ->
   gen_header(Fd),
+  gen_bidirectional(Fd),
   gen_lookup(Fd, Data),
   gen_joining_types(Fd, JoiningTypes),
   gen_scripts_types(Fd, Scripts),
@@ -55,6 +85,7 @@ gen_header(Fd) ->
   io:put_chars(Fd, "-module(" ++ ?MOD ++").\n"),
   io:put_chars(Fd, "-compile(compressed).\n"),
   io:put_chars(Fd, "-export([lookup/1, joining_types/1, scripts/1]).\n"),
+  io:put_chars(Fd, "-export([bidirectional/1]).\n"),
   ok.
 
 gen_lookup(Fd, Data) ->
@@ -64,7 +95,20 @@ gen_lookup(Fd, Data) ->
     end,
     lists:sort(Data)
   ),
-  io:put_chars(Fd, "lookup(_) -> false.\n").
+  io:put_chars(Fd, "lookup(_) -> false.\n\n").
+
+gen_bidirectional(Fd) ->
+  lists:foreach(
+    fun({Cp, Class}) ->
+      io:format(Fd, "bidirectional~s ~p;~n", [gen_single_clause(Cp), Class])
+    end,
+    lists:sort(?BIDI_CLASS_DEFAULTS)
+  ),
+  io:put_chars(Fd, "bidirectional(CP) ->\n"),
+  io:put_chars(Fd, "  case lookup(CP) of \n"),
+  io:put_chars(Fd, "    {_, C} -> C;\n"),
+  io:put_chars(Fd, "    false -> \"L\"\n"),
+  io:put_chars(Fd, "  end.\n\n").
 
 gen_joining_types(Fd, JoiningTypes) ->
   lists:foreach(
@@ -73,7 +117,7 @@ gen_joining_types(Fd, JoiningTypes) ->
     end,
     lists:sort(JoiningTypes)
   ),
-  io:put_chars(Fd, "joining_types(_) -> undefined.\n").
+  io:put_chars(Fd, "joining_types(_) -> undefined.\n\n").
 
 gen_scripts_types(Fd, Scripts) ->
   lists:foreach(
@@ -82,7 +126,7 @@ gen_scripts_types(Fd, Scripts) ->
     end,
     optimize_scripts_ranges(lists:sort(Scripts))
   ),
-  io:put_chars(Fd, "scripts(_) -> false.\n").
+  io:put_chars(Fd, "scripts(_) -> false.\n\n").
 
 optimize_scripts_ranges(Rs0) ->
   PF = fun

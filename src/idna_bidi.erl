@@ -16,6 +16,7 @@ check_bidi(Label) -> check_bidi(Label, false).
 
 check_bidi(Label, CheckLtr) ->
   %% Bidi rules should only be applied if string contains RTL characters
+  io:format(user, "label=~p~n", [Label]),
   case {check_rtl(Label, Label), CheckLtr} of
     {false, false}  -> true;
     _ ->
@@ -26,28 +27,30 @@ check_bidi(Label, CheckLtr) ->
   end.
 
 check_rtl([C | Rest], Label) ->
-  case idna_data:lookup(C) of
+  case idna_data:bidirectional(C) of
     false ->
       erlang:exit(bidi_error("unknown directionality in label=~p c=~w~n", [Label, C]));
-    {_, Dir} ->
+    Dir ->
       case lists:member(Dir, ["R", "AL", "AN"]) of
-        true -> check_rtl(Rest, Label);
-        false -> false
+        true -> true;
+        false -> check_rtl(Rest, Label)
       end
-  end.
+  end;
+check_rtl([], _Label) ->
+  false.
 
 rtl(C, Label) ->
-  case idna_data:lookup(C) of
-    {_, "R"} -> true;
-    {_, "AL"} -> true;
-    {_, "L"} -> false;
+  case idna_data:bidirectional(C) of
+    "R" -> true;
+    "AL" -> true;
+    "L" -> false;
     _ ->
       erlang:exit(bidi_error("first codepoint in label ~p must be directionality L, R or AL ", [Label]))
   end.
 
 
 check_bidi1([C | Rest], true, ValidEnding, NumberType) ->
-  {_, Dir} =  idna_data:lookup(C),
+  Dir =  idna_data:bidirectional(C),
   %% bidi rule 2
   ValidEnding2 = case lists:member(C,  ["R", "AL", "AN", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"]) of
                   true ->
@@ -70,7 +73,7 @@ check_bidi1([C | Rest], true, ValidEnding, NumberType) ->
                end,
   check_bidi1(Rest, true, ValidEnding2, NumberType2);
 check_bidi1([C | Rest], false, ValidEnding, NumberType) ->
-  {_, Dir} =  idna_data:lookup(C),
+  Dir =  idna_data:bidirectional(C),
   % bidi rule 5
   ValidEnding2 = case lists:member(Dir, ["L", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"]) of
                    true ->

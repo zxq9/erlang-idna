@@ -5,6 +5,34 @@
 -module(idna_data).
 -compile(compressed).
 -export([lookup/1, joining_types/1, scripts/1]).
+-export([bidirectional/1]).
+bidirectional(CP) when 1424 =< CP, CP =< 1535 -> "R";
+bidirectional(CP) when 1536 =< CP, CP =< 1983 -> "AL";
+bidirectional(CP) when 1984 =< CP, CP =< 2143 -> "R";
+bidirectional(CP) when 2144 =< CP, CP =< 2159 -> "AL";
+bidirectional(CP) when 2160 =< CP, CP =< 2207 -> "R";
+bidirectional(CP) when 2208 =< CP, CP =< 2303 -> "AL";
+bidirectional(CP) when 8352 =< CP, CP =< 8399 -> "ET";
+bidirectional(CP) when 64285 =< CP, CP =< 64335 -> "R";
+bidirectional(CP) when 64336 =< CP, CP =< 4060 -> "AL";
+bidirectional(CP) when 65008 =< CP, CP =< 65023 -> "AL";
+bidirectional(CP) when 65136 =< CP, CP =< 65279 -> "AL";
+bidirectional(CP) when 67584 =< CP, CP =< 68863 -> "R";
+bidirectional(CP) when 68864 =< CP, CP =< 68927 -> "AL";
+bidirectional(CP) when 68928 =< CP, CP =< 69423 -> "R";
+bidirectional(CP) when 69424 =< CP, CP =< 69487 -> "AL";
+bidirectional(CP) when 69488 =< CP, CP =< 69631 -> "R";
+bidirectional(CP) when 124928 =< CP, CP =< 126063 -> "R";
+bidirectional(CP) when 126064 =< CP, CP =< 126143 -> "AL";
+bidirectional(CP) when 126144 =< CP, CP =< 126463 -> "R";
+bidirectional(CP) when 126464 =< CP, CP =< 126719 -> "AL";
+bidirectional(CP) when 126720 =< CP, CP =< 126975 -> "R";
+bidirectional(CP) ->
+  case lookup(CP) of 
+    {_, C} -> C;
+    false -> "L"
+  end.
+
 lookup(0) -> {"Cc","BN"};
 lookup(1) -> {"Cc","BN"};
 lookup(2) -> {"Cc","BN"};
@@ -32298,6 +32326,7 @@ lookup(1048573) -> {"Co","L"};
 lookup(1048576) -> {"Co","L"};
 lookup(1114109) -> {"Co","L"};
 lookup(_) -> false.
+
 joining_types(1536) -> "U";
 joining_types(1537) -> "U";
 joining_types(1538) -> "U";
@@ -33035,6 +33064,7 @@ joining_types(125249) -> "D";
 joining_types(125250) -> "D";
 joining_types(125251) -> "D";
 joining_types(_) -> undefined.
+
 scripts(885) -> "greek";
 scripts(890) -> "greek";
 scripts(895) -> "greek";
@@ -33145,3 +33175,4 @@ scripts(CP) when 178208 =< CP, CP =< 183969 -> "han";
 scripts(CP) when 183984 =< CP, CP =< 191456 -> "han";
 scripts(CP) when 194560 =< CP, CP =< 195101 -> "han";
 scripts(_) -> false.
+
