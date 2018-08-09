@@ -60,7 +60,6 @@ check_bidi1([C | Rest], true, ValidEnding, NumberType) ->
                       false -> ValidEnding
                     end;
                   false ->
-                    io:format("dir is ~p~n", [Dir]),
                     erlang:exit({bad_label, {bidi, "Invalid direction for codepoint  in a right-to-left label"}})
                 end,
   % bidi rule 4
