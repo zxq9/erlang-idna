@@ -177,7 +177,7 @@ alabel(Label) ->
   end.
 
 decode_1([], Acc) ->
-  list:reverse(Acc);
+  lists:reverse(Acc);
 decode_1([Label|Labels], []) ->
   decode_1(Labels, lists:reverse(ulabel(Label)));
 decode_1([Label|Labels], Acc) ->

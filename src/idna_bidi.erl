@@ -16,9 +16,8 @@ check_bidi(Label) -> check_bidi(Label, false).
 
 check_bidi(Label, CheckLtr) ->
   %% Bidi rules should only be applied if string contains RTL characters
-  io:format(user, "label=~p~n", [Label]),
   case {check_rtl(Label, Label), CheckLtr} of
-    {false, false}  -> true;
+    {false, false}  -> ok;
     _ ->
       [C | Rest] = Label,
       % bidi rule 1
