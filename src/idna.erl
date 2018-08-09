@@ -82,7 +82,7 @@ decode(Domain0, Options) ->
 %%
 
 to_ascii(Domain) -> encode(Domain, [uts46]).
-to_unicode(Domain) -> from_ascii(Domain).
+to_unicode(Domain) -> decode(Domain).
 
 
 utf8_to_ascii(Domain) ->
