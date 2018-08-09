@@ -71,8 +71,6 @@ gen_unassigned_p(Fd) ->
 gen_valid_p(Fd) ->
   io:put_chars(Fd, "valid_p(CP) -> lookup(CP) == 'PVALID'.\n").
 
-
-
 gen_lookup(Fd, Data) ->
   lists:foreach(fun({Cp, Class}) ->
     io:format(Fd, "lookup~s ~p;~n", [gen_single_clause(Cp), Class])

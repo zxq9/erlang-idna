@@ -16,6 +16,14 @@
 
 -define(ACE_PREFIX, "xn--").
 
+-ifdef('OTP_RELEASE').
+-define(lower(C), string:lowercase(C)).
+-else.
+-define(lower(C), string:to_lower(C)).
+-endif.
+
+
+
 encode(Domain) ->
   encode(Domain, []).
 
@@ -109,16 +117,18 @@ check_nfc(Label) ->
       erlang:exit({bad_label, {nfc, "Label must be in Normalization Form C"}})
   end.
 
-check_hyphen([_, _, $-, $-|_]) ->
-  erlang:exit({bad_label, {hyphen, "Label has disallowed hyphens in 3rd and 4th position"}});
-check_hyphen([$- | _]) ->
-  erlang:exit({bad_label, {hyphen, "Label must not start with an hyphen"}});
 check_hyphen(Label) ->
-  case lists:last(Label) of
-    "-" ->
-      erlang:exit({bad_label, {hyphen, "Label must not end with an hyphen"}});
+  case lists:nthtail(2, Label) of
+    [$-, $-|_] ->
+      ErrorMsg = error_msg("Label ~p has disallowed hyphens in 3rd and 4th position", [Label]),
+      erlang:exit({bad_label, {hyphen, ErrorMsg}});
     _ ->
-      ok
+      case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
+        true ->
+          erlang:exit({bad_label, {hyphen, "Label must not start or end with a hyphen"}});
+        false ->
+          ok
+      end
   end.
 
 check_initial_combiner([CP|_]) ->
@@ -140,7 +150,7 @@ check_context([CP | Rest], Label, Pos) ->
         true ->
           check_context(Rest, Label, Pos+1);
         false ->
-          ErrorMsg = io:format("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+          ErrorMsg = error_msg("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
           erlang:exit({bad_label, {contextj, ErrorMsg}})
 
       end;
@@ -149,11 +159,11 @@ check_context([CP | Rest], Label, Pos) ->
         true ->
           check_context(Rest, Label, Pos+1);
         false ->
-          ErrorMsg = io:format("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+          ErrorMsg = error_msg("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
           erlang:exit({bad_label, {contextj, ErrorMsg}})
       end;
     _ ->
-      ErrorMsg = io:format("Codepoint ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+      ErrorMsg = error_msg("Codepoint ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
       erlang:exit({bad_label, {contextj, ErrorMsg}})
   end;
 check_context([], _, _) ->
@@ -167,14 +177,31 @@ check_label(Label) ->
   ok = idna_bidi:check_bidi(Label),
   ok.
 
-alabel(Label) ->
-  ok = check_label(Label),
-  case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label) of
+check_label_length(Label) when length(Label) > 63 ->
+  ErrorMsg = error_msg("The label ~p  is too long", [Label]),
+  erlang:exit({bad_label, {too_long, ErrorMsg}});
+check_label_length(_) ->
+  ok.
+
+alabel([$x,$n,$-,$-|_]=Label0) ->
+  Label1 = try ulabel(Label0)
+          catch
+            _:_ ->
+              ErrorMsg = error_msg("The label ~p  is not a valid A-label", [Label0]),
+              erlang:exit({bad_label, {alabel, ErrorMsg}})
+          end,
+  Label = ?ACE_PREFIX ++ punycode:encode(Label1),
+  if
+    Label == Label0 -> Label;
     true ->
-      Label;
-    false ->
-      ?ACE_PREFIX ++ punycode:encode(Label)
-  end.
+      ErrorMsg2 = error_msg("The label ~p  s not a valid A-label", [Label0]),
+      erlang:exit({bad_label, {alabel, ErrorMsg2}})
+  end;
+alabel(Label0) ->
+  ok = check_label(Label0),
+  Label = ?ACE_PREFIX ++ punycode:encode(Label0),
+  ok = check_label_length(Label),
+  Label.
 
 decode_1([], Acc) ->
   lists:reverse(Acc);
@@ -183,12 +210,12 @@ decode_1([Label|Labels], []) ->
 decode_1([Label|Labels], Acc) ->
   decode_1(Labels, lists:reverse(ulabel(Label), [$.|Acc])).
 
-ulabel(?ACE_PREFIX ++ Label0) ->
-  Label = punycode:decode(Label0),
+ulabel([$x,$n,$-,$-|Label0]) ->
+  Label = punycode:decode(lowercase(Label0)),
   ok = check_label(Label),
   Label;
 ulabel(Label) ->
-  ok = check_label(Label),
+  ok = check_label(lowercase(Label)),
   Label.
 
 
@@ -211,7 +238,7 @@ lowercase_bin(CPs0, Acc) ->
       lowercase_bin(CPs, <<Acc/binary, Char/utf8>>);
     [Chars|CPs] ->
       lowercase_bin(CPs, <<Acc/binary,
-                           << <<CP/utf8>> || CP <- Chars>>/binary >>);
+        << <<CP/utf8>> || CP <- Chars>>/binary >>);
     [] -> Acc
   end.
 
@@ -251,3 +278,6 @@ uts46_remap_1([Cp|Rs], Std3Rules, Transitional) ->
   end;
 uts46_remap_1([], _, _) ->
   [].
+
+error_msg(Msg, Fmt) ->
+  lists:flatten(io_lib:format(Msg, Fmt)).
