@@ -235,3 +235,42 @@ valid_contexto_test() ->
   % RFC 5892 Rule A.9 (Extended Arabic-Indic Digits)
   true = idna_context:valid_contexto(Ext_arabic_digit ++ Ext_arabic_digit, 0),
   false = idna_context:valid_contexto(Ext_arabic_digit ++ Arabic_digit, 0).
+
+encode_test() ->
+  ?assertEqual("xn--zckzah.xn--zckzah", idna:encode("xn--zckzah.xn--zckzah")),
+  ?assertEqual("xn--zckzah.xn--zckzah", idna:encode([16#30c6,16#30b9,16#30c8, $., 16#30c6, 16#30b9, 16#30c8])),
+  ?assertEqual("abc.abc", idna:encode("abc.abc")),
+  ?assertEqual("xn--zckzah.abc", idna:encode("xn--zckzah.abc")),
+  ?assertEqual("xn--zckzah.abc", idna:encode([16#30c6, 16#30b9, 16#30c8, $., $a, $b, $c])),
+  ?assertEqual(
+    "xn---------90gglbagaar.aa",
+    idna:encode([16#0521,16#0525,16#0523,$-,16#0523,16#0523,$-,$-,$-,$-,$-,16#0521,16#0523,16#0523,16#0523|".aa"])
+  ),
+  ?assertExit(
+    {bad_label, {_, _}},
+    idna:encode(
+      [16#0521,16#0524,16#0523,$-,16#0523,16#0523,$-,$-,$-,$-,$-,16#0521,16#0523,16#0523,16#0523|".aa"],
+      [{uts46, false}]
+    )
+  ),
+  ?assertEqual([$a ||_ <- lists:seq(1, 63)], idna:encode([$a ||_ <- lists:seq(1, 63)])),
+  ?assertExit({bad_label, {_, _}}, idna:encode([$a ||_ <- lists:seq(1, 64)])).
+
+
+decode_test() ->
+  ?assertEqual([16#30c6, 16#30b9, 16#30c8, $., 16#30c6, 16#30b9, 16#30c8], idna:decode("xn--zckzah.xn--zckzah")),
+  ?assertEqual(
+    [16#30c6, 16#30b9, 16#30c8, $., 16#30c6, 16#30b9, 16#30c8],
+    idna:decode([16#30c6, 16#30b9, 16#30c8|".xn--zckzah"])
+  ),
+  ?assertEqual(
+    [16#30c6, 16#30b9, 16#30c8, $., 16#30c6, 16#30b9, 16#30c8],
+    idna:decode([16#30c6, 16#30b9, 16#30c8, $., 16#30c6, 16#30b9, 16#30c8])
+  ),
+  ?assertEqual("abc.abc", idna:decode("abc.abc")),
+  ?assertEqual(
+    [16#0521,16#0525,16#0523,$-,16#0523,16#0523,$-,$-,$-,$-,$-,16#0521,16#0523,16#0523,16#0523|".aa"],
+    idna:decode("xn---------90gglbagaar.aa")
+  ),
+  ?assertExit({bad_label, {_, _}}, idna:decode("XN---------90GGLBAGAAC.AA")),
+  ?assertExit({bad_label, {_, _}}, idna:decode("xn---------90gglbagaac.aa")).

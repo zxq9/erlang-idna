@@ -37,15 +37,15 @@ encode(Domain0, Options) ->
                STD3Rules = proplists:get_value(std3_rules, Options, false),
                Transitional = proplists:get_value(transitional, Options, false),
                uts46_remap(Domain0, STD3Rules, Transitional);
-             false -> Domain0
+             false ->
+               Domain0
            end,
   Labels = case proplists:get_value(strict, Options, false) of
              false ->
-               re:split(lowercase(Domain), "[.。．｡]", [{return, list}, unicode]);
+               re:split(Domain, "[.。．｡]", [{return, list}, unicode]);
              true ->
-               string:tokens(lowercase(Domain), ".")
+               string:tokens(Domain, ".")
            end,
-
   case Labels of
     [] -> exit(empty_domain);
     _ ->
@@ -64,13 +64,13 @@ decode(Domain0, Options) ->
              false ->
                Domain0
            end,
+
   Labels = case proplists:get_value(strict, Options, false) of
              false ->
                re:split(lowercase(Domain), "[.。．｡]", [{return, list}, unicode]);
              true ->
                string:tokens(lowercase(Domain), ".")
            end,
-
   case Labels of
     [] -> exit(empty_domain);
     _ ->
@@ -143,7 +143,7 @@ check_initial_combiner([CP|_]) ->
       ok
   end.
 
-check_context(Label) -> check_context(Label, Label, 1).
+check_context(Label) -> check_context(Label, Label, 0).
 
 check_context([CP | Rest], Label, Pos) ->
   case idna_table:lookup(CP) of
@@ -167,7 +167,7 @@ check_context([CP | Rest], Label, Pos) ->
           erlang:exit({bad_label, {contextj, ErrorMsg}})
       end;
     _ ->
-      ErrorMsg = error_msg("Codepoint ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+      ErrorMsg = error_msg("Codepoint ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
       erlang:exit({bad_label, {contextj, ErrorMsg}})
   end;
 check_context([], _, _) ->
@@ -202,8 +202,13 @@ alabel([$x,$n,$-,$-|_]=Label0) ->
       erlang:exit({bad_label, {alabel, ErrorMsg2}})
   end;
 alabel(Label0) ->
-  ok = check_label(Label0),
-  Label = ?ACE_PREFIX ++ punycode:encode(Label0),
+  Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
+            true ->
+              Label0;
+            false ->
+              ok = check_label(Label0),
+              ?ACE_PREFIX ++ punycode:encode(Label0)
+          end,
   ok = check_label_length(Label),
   Label.
 
