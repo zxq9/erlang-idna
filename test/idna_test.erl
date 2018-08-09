@@ -181,3 +181,57 @@ valid_contextj_test() ->
   false = idna_context:valid_contextj(Zwj, 0),
   false = idna_context:valid_contextj(Latin ++ Zwj, 1),
   true = idna_context:valid_contextj(Virama ++ Zwj, 1).
+
+
+valid_contexto_test() ->
+  Latin = [16#0061],
+  Latin_l = [16#006c],
+  Greek = [16#03b1],
+  Hebrew = [16#05d0],
+  Katakana = [16#30a1],
+  Hiragana = [16#3041],
+  Han = [16#6f22],
+  Arabic_digit = [16#0660],
+  Ext_arabic_digit = [16#06f0],
+
+  % RFC 5892 Rule A.3 (Middle Dot)
+  Latin_middle_dot = [16#00b7],
+  true = idna_context:valid_contexto(Latin_l ++ Latin_middle_dot ++  Latin_l, 1),
+  false = idna_context:valid_contexto(Latin_middle_dot ++ Latin_l, 1),
+  false = idna_context:valid_contexto(Latin_l ++ Latin_middle_dot, 0),
+  false = idna_context:valid_contexto(Latin_middle_dot, 0),
+  false = idna_context:valid_contexto(Latin_l ++ Latin_middle_dot ++ Latin, 1),
+
+  % RFC 5892 Rule A.4 (Greek Lower Numeral Sign)
+  Glns = [16#0375],
+  true = idna_context:valid_contexto(Glns ++ Greek, 0),
+  false = idna_context:valid_contexto(Glns ++ Latin, 0),
+  false = idna_context:valid_contexto(Glns, 0),
+  false = idna_context:valid_contexto(Greek ++ Glns, 1),
+
+  % RFC 5892 Rule A.5 (Hebrew Punctuation Geresh)
+  Geresh = [16#05f3],
+  true = idna_context:valid_contexto(Hebrew ++ Geresh, 1),
+  false = idna_context:valid_contexto(Latin ++ Geresh, 1),
+
+  % RFC 5892 Rule A.6 (Hebrew Punctuation Gershayim)
+  Gershayim = [16#05f4],
+  true = idna_context:valid_contexto(Hebrew ++ Gershayim, 1),
+  false = idna_context:valid_contexto(Latin ++ Gershayim, 1),
+
+  % RFC 5892 Rule A.7 (Katakana Middle Dot)
+  Ja_middle_dot = [16#30fb],
+  true = idna_context:valid_contexto(Katakana ++ Ja_middle_dot ++ Katakana, 1),
+  true = idna_context:valid_contexto(Hiragana ++ Ja_middle_dot ++ Hiragana, 1),
+  true = idna_context:valid_contexto(Han ++ Ja_middle_dot ++ Han, 1),
+  true = idna_context:valid_contexto(Han ++ Ja_middle_dot ++ Latin, 1),
+  true = idna_context:valid_contexto([16#6f22, 16#30fb, 16#5b57], 1),
+  false = idna_context:valid_contexto([16#0061, 16#30fb, 16#0061], 1),
+
+  % RFC 5892 Rule A.8 (Arabic-Indic Digits)
+  true = idna_context:valid_contexto(Katakana ++ Ja_middle_dot ++ Katakana, 1),
+  false = idna_context:valid_contexto([16#0061, 16#30fb, 16#0061], 1),
+
+  % RFC 5892 Rule A.9 (Extended Arabic-Indic Digits)
+  true = idna_context:valid_contexto(Ext_arabic_digit ++ Ext_arabic_digit, 0),
+  false = idna_context:valid_contexto(Ext_arabic_digit ++ Arabic_digit, 0).
