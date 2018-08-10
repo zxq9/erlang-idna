@@ -269,18 +269,26 @@ uts46_remap(Str, Std3Rules, Transitional) ->
   characters_to_nfc_list(uts46_remap_1(Str, Std3Rules, Transitional)).
 
 uts46_remap_1([Cp|Rs], Std3Rules, Transitional) ->
-  {Status, Replacement, _IStatus} =  idna_mapping:uts46_map(Cp),
+  Row = try idna_mapping:uts46_map(Cp)
+        catch
+          error:badarg  ->
+            erlang:exit({invalid_codepoint, Cp})
+        end,
+  {Status, Replacement} = case Row of
+                            {_, _} -> Row;
+                            S -> {S, undefined}
+                          end,
   if
-    ((Status =:= valid) orelse
-     (Status =:= deviation andalso Transitional =:= false) orelse
-     (Status =:= disallowed_STD3_mapped andalso Std3Rules =:= false andalso Replacement =:= undefined)) ->
+    (Status =:= 'V');
+    ((Status =:= 'D') andalso (Transitional =:= false));
+    ((Status =:= '3') andalso (Std3Rules =:= true) andalso (Replacement =:= undefined)) ->
       [Cp] ++ uts46_remap_1(Rs, Std3Rules, Transitional);
-    ((Replacement =/= undefined) andalso
-     ((Status =:= mapped) orelse
-      (Status =:= disallowed_STD3_mapped andalso Std3Rules =:= false) orelse
-      (Status =:= deviation andalso Transitional =:= true))) ->
+    (Replacement =/= undefined) andalso (
+        (Status =:= 'M') orelse
+          (Status =:= '3' andalso Std3Rules =:= false) orelse
+          (Status =:= 'D' andalso Transitional =:= true)) ->
       Replacement ++ uts46_remap_1(Rs, Std3Rules, Transitional);
-    Status =:= ignored ->
+    (Status =:= 'I') ->
       uts46_remap_1(Rs, Std3Rules, Transitional);
     true ->
       erlang:exit({invalid_codepoint, Cp})
