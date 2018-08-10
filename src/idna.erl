@@ -81,7 +81,7 @@ decode(Domain0, Options) ->
 %% Compatibility API
 %%
 
-to_ascii(Domain) -> encode(Domain, [uts46]).
+to_ascii(Domain) -> encode(Domain).
 to_unicode(Domain) -> decode(Domain).
 
 
