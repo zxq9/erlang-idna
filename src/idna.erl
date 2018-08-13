@@ -1,3 +1,4 @@
+%% -*- coding: utf-8 -*-
 -module(idna).
 
 %% API
@@ -59,7 +60,7 @@ decode(Domain0, Options) ->
   ok = validate_options(Options),
   Domain = case proplists:get_value(uts46, Options, false) of
              true ->
-               STD3Rules = proplists:get_value(std3_rules, Options, false),
+               STD3Rules = proplists:get_value(std3_rules, Options, true),
                uts46_remap(Domain0, STD3Rules, false);
              false ->
                Domain0
@@ -121,7 +122,9 @@ check_nfc(Label) ->
       erlang:exit({bad_label, {nfc, "Label must be in Normalization Form C"}})
   end.
 
-check_hyphen(Label) ->
+
+
+check_hyphen(Label) when length(Label) >= 3 ->
   case lists:nthtail(2, Label) of
     [$-, $-|_] ->
       ErrorMsg = error_msg("Label ~p has disallowed hyphens in 3rd and 4th position", [Label]),
@@ -133,6 +136,13 @@ check_hyphen(Label) ->
         false ->
           ok
       end
+  end;
+check_hyphen(Label) ->
+  case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
+    true ->
+      erlang:exit({bad_label, {hyphen, "Label must not start or end with a hyphen"}});
+    false ->
+      ok
   end.
 
 check_initial_combiner([CP|_]) ->
@@ -154,7 +164,7 @@ check_context([CP | Rest], Label, Pos) ->
         true ->
           check_context(Rest, Label, Pos + 1);
         false ->
-          ErrorMsg = error_msg("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
+          ErrorMsg = error_msg("Joiner ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
           erlang:exit({bad_label, {contextj, ErrorMsg}})
 
       end;
@@ -163,12 +173,12 @@ check_context([CP | Rest], Label, Pos) ->
         true ->
           check_context(Rest, Label, Pos + 1);
         false ->
-          ErrorMsg = error_msg("Joiner ~p pnot allowed at posion ~p in ~p", [CP, Pos, Label]),
-          erlang:exit({bad_label, {contextj, ErrorMsg}})
+          ErrorMsg = error_msg("Joiner ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
+          erlang:exit({bad_label, {contexto, ErrorMsg}})
       end;
-    _ ->
-      ErrorMsg = error_msg("Codepoint ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
-      erlang:exit({bad_label, {contextj, ErrorMsg}})
+    _Status ->
+      ErrorMsg = error_msg("Codepoint ~p not allowed (~p) at posion ~p in ~p", [CP, _Status, Pos, Label]),
+      erlang:exit({bad_label, {context, ErrorMsg}})
   end;
 check_context([], _, _) ->
   ok.
@@ -219,37 +229,88 @@ decode_1([Label|Labels], []) ->
 decode_1([Label|Labels], Acc) ->
   decode_1(Labels, lists:reverse(ulabel(Label), [$.|Acc])).
 
-ulabel([$x,$n,$-,$-|Label0]) ->
-  Label = punycode:decode(lowercase(Label0)),
+ulabel(Label0) ->
+  Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
+            true ->
+              case Label0 of
+                [$x,$n,$-,$-|Label1] ->
+                  punycode:decode(lowercase(Label1));
+                _ ->
+                  lowercase(Label0)
+              end;
+            false ->
+              Label0
+          end,
   ok = check_label(Label),
-  Label;
-ulabel(Label) ->
-  ok = check_label(lowercase(Label)),
   Label.
+
+%ulabel([$x,$n,$-,$-|Label0]) ->
+%  Label = punycode:decode(lowercase(Label0)),
+%  io:format("after decode ulabel ~p~n", [Label]),
+%  ok = check_label(Label),
+%  Label;
+%ulabel(Label) ->
+%  io:format("ulabel ~p~n", [Label]),
+%  ok = check_label(lowercase(Label)),
+%  Label.
 
 
 %% Lowercase all chars in Str
 -spec lowercase(String::unicode:chardata()) -> unicode:chardata().
 lowercase(CD) when is_list(CD) ->
-  lowercase_list(CD);
-lowercase(CD) when is_binary(CD) ->
-  lowercase_bin(CD,<<>>).
+  try lowercase_list(CD, false)
+  catch unchanged -> CD
+  end;
+lowercase(<<CP1/utf8, Rest/binary>>=Orig) ->
+  try lowercase_bin(CP1, Rest, false) of
+    List -> unicode:characters_to_binary(List)
+  catch unchanged -> Orig
+  end;
+lowercase(<<>>) ->
+  <<>>.
 
-lowercase_list(CPs0) ->
+
+lowercase_list([CP1|[CP2|_]=Cont], _Changed) when $A =< CP1, CP1 =< $Z, CP2 < 256 ->
+  [CP1+32|lowercase_list(Cont, true)];
+lowercase_list([CP1|[CP2|_]=Cont], Changed) when CP1 < 128, CP2 < 256 ->
+  [CP1|lowercase_list(Cont, Changed)];
+lowercase_list([], true) ->
+  [];
+lowercase_list([], false) ->
+  throw(unchanged);
+lowercase_list(CPs0, Changed) ->
   case unicode_util_compat:lowercase(CPs0) of
-    [Char|CPs] -> append(Char,lowercase_list(CPs));
-    [] -> []
+    [Char|CPs] when Char =:= hd(CPs0) -> [Char|lowercase_list(CPs, Changed)];
+    [Char|CPs] -> append(Char,lowercase_list(CPs, true));
+    [] -> lowercase_list([], Changed)
   end.
 
-lowercase_bin(CPs0, Acc) ->
-  case unicode_util_compat:lowercase(CPs0) of
-    [Char|CPs] when is_integer(Char) ->
-      lowercase_bin(CPs, <<Acc/binary, Char/utf8>>);
-    [Chars|CPs] ->
-      lowercase_bin(CPs, <<Acc/binary,
-        << <<CP/utf8>> || CP <- Chars>>/binary >>);
-    [] -> Acc
+lowercase_bin(CP1, <<CP2/utf8, Bin/binary>>, _Changed)
+  when $A =< CP1, CP1 =< $Z, CP2 < 256 ->
+  [CP1+32|lowercase_bin(CP2, Bin, true)];
+lowercase_bin(CP1, <<CP2/utf8, Bin/binary>>, Changed)
+  when CP1 < 128, CP2 < 256 ->
+  [CP1|lowercase_bin(CP2, Bin, Changed)];
+lowercase_bin(CP1, Bin, Changed) ->
+  case unicode_util_compat:lowercase([CP1|Bin]) of
+    [CP1|CPs] ->
+      case unicode_util_compat:cp(CPs) of
+        [Next|Rest] ->
+          [CP1|lowercase_bin(Next, Rest, Changed)];
+        [] when Changed ->
+          [CP1];
+        [] ->
+          throw(unchanged)
+      end;
+    [Char|CPs] ->
+      case unicode_util_compat:cp(CPs) of
+        [Next|Rest] ->
+          [Char|lowercase_bin(Next, Rest, true)];
+        [] ->
+          [Char]
+      end
   end.
+
 
 append(Char, <<>>) when is_integer(Char) -> [Char];
 append(Char, <<>>) when is_list(Char) -> Char;
@@ -265,6 +326,7 @@ characters_to_nfc_list(CD) ->
     [] -> []
   end.
 
+%%uts46_remap("[$x,$n,$-,$-|_"=Str, _, _) -> Str;
 uts46_remap(Str, Std3Rules, Transitional) ->
   characters_to_nfc_list(uts46_remap_1(Str, Std3Rules, Transitional)).
 
