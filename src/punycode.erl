@@ -1,3 +1,4 @@
+%% -*- coding: utf-8 -*-
 %% @doc Punycode ([RFC 3492](http://tools.ietf.org/html/rfc3492)) implementation.
 
 -module(punycode).
@@ -94,6 +95,7 @@ to_digit(_) -> exit(badarg).
 %% the DNS limit on domain name labels.
 -spec decode(string()) -> string().
 decode(Input) ->
+
   {Output, Input2} = case string:rstr(Input, [?DELIMITER]) of
              0 -> {"", Input};
              Pos ->
@@ -101,10 +103,9 @@ decode(Input) ->
            end,
   decode(Input2, Output, ?INITIAL_N, ?INITIAL_BIAS, 0).
 
-
 decode([], Output, _, _, _) -> Output;
 decode(Input, Output, N, Bias, I) ->
-  decode(Input, Output,  N, Bias, I, I, 1, ?BASE).
+  decode(Input, Output, N, Bias, I, I, 1, ?BASE).
 
 decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
   Digit = digit(C),
@@ -120,15 +121,14 @@ decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
   case Digit < T of
     true ->
       Len = length(Output),
-      Bias2 = adapt(I1 - OldI, Len + 1, (OldI == 0)),
+      Bias2 = adapt(I1 - OldI, Len + 1, (OldI =:= 0)),
       {N2, I2}= case (I1 div (Len +1)) > (?MAX - N) of
                   false ->
-                    {N + I1 div (Len + 1), I1 rem (Len + 1)};
+                    {N + (I1 div (Len + 1)), I1 rem (Len + 1)};
                   true ->
                     exit(overflow)
                 end,
-      {Head, Tail} = lists:split(I2, Output),
-      Output2 = Head ++ [N2] ++ Tail,
+      Output2 = insert(Output, N2, [], I2),
       decode(Rest, Output2, N2, Bias2, I2+1);
     false ->
       case Weight > (?MAX  div (?BASE - T)) of
@@ -138,6 +138,14 @@ decode([C|Rest], Output, N, Bias, I0, OldI, Weight, K) ->
           exit(overflow)
       end
   end.
+
+insert(Tail, CP, Head, 0) ->
+  Head ++ [CP | Tail];
+insert([], _CP, _Head, I) when I > 0->
+  exit(overflow);
+insert([C | Tail], CP, Head, I) ->
+  insert(Tail, CP, Head ++ [C], I - 1).
+
 
 digit(C) when C >= $0, C =< $9 -> C - $0 + 26;
 digit(C) when C >= $A, C =< $Z -> C - $A;
