@@ -20,10 +20,10 @@
 
 
 valid_contextj([], _Pos)  -> true;
+
 valid_contextj(Label, Pos) ->
   CP = lists:nth(Pos + 1, Label),
   valid_contextj(CP, Label, Pos).
-
 
 valid_contextj(16#200c, Label, Pos) ->
   if
