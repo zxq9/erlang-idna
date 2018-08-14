@@ -138,7 +138,8 @@ check_hyphen(Label, true) when length(Label) >= 3 ->
     _ ->
       case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
         true ->
-          erlang:exit({bad_label, {hyphen, "Label must not start or end with a hyphen"}});
+          ErrorMsg = error_msg("Label ~p must not start or end with a hyphen", [Label]),
+          erlang:exit({bad_label, {hyphen, ErrorMsg}});
         false ->
           ok
       end
@@ -146,7 +147,8 @@ check_hyphen(Label, true) when length(Label) >= 3 ->
 check_hyphen(Label, true) ->
   case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
     true ->
-      erlang:exit({bad_label, {hyphen, "Label must not start or end with a hyphen"}});
+      ErrorMsg = error_msg("Label ~p must not start or end with a hyphen", [Label]),
+      erlang:exit({bad_label, {hyphen, ErrorMsg}});
     false ->
       ok
   end;
@@ -232,20 +234,6 @@ check_label_length(Label) when length(Label) > 63 ->
 check_label_length(_) ->
   ok.
 
-%alabel([$x,$n,$-,$-|_]=Label0) ->
-%  Label1 = try ulabel(Label0)
-%          catch
-%            _:_ ->
-%              ErrorMsg = error_msg("The label ~p  is not a valid A-label", [Label0]),
-%              erlang:exit({bad_label, {alabel, ErrorMsg}})
-%          end,
-%  Label = ?ACE_PREFIX ++ punycode:encode(Label1),
-%  if
-%    Label == Label0 -> Label;
-%    true ->
-%      ErrorMsg2 = error_msg("The label ~p  s not a valid A-label", [Label0]),
-%      erlang:exit({bad_label, {alabel, ErrorMsg2}})
-%  end;
 alabel(Label0) ->
   Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
             true ->
