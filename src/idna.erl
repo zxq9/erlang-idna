@@ -14,9 +14,13 @@
 
 -export([alabel/1, ulabel/1]).
 
--export([check_hyphen/1, check_nfc/1, check_context/1, check_initial_combiner/1, check_label_length/1]).
+-export([check_hyphen/1,
+         check_nfc/1,
+         check_context/1,
+         check_initial_combiner/1,
+         check_label_length/1]).
 
--export([check_label/1]).
+-export([check_label/1, check_label/4]).
 
 -define(ACE_PREFIX, "xn--").
 
@@ -26,6 +30,7 @@
 -define(lower(C), string:to_lower(C)).
 -endif.
 
+-include("idna_logger.hrl").
 
 
 encode(Domain) ->
@@ -60,8 +65,9 @@ decode(Domain0, Options) ->
   ok = validate_options(Options),
   Domain = case proplists:get_value(uts46, Options, false) of
              true ->
-               STD3Rules = proplists:get_value(std3_rules, Options, true),
-               uts46_remap(Domain0, STD3Rules, false);
+               STD3Rules = proplists:get_value(std3_rules, Options, false),
+               Transitional = proplists:get_value(transitional, Options, false),
+               uts46_remap(Domain0, STD3Rules, Transitional);
              false ->
                Domain0
            end,
@@ -122,9 +128,9 @@ check_nfc(Label) ->
       erlang:exit({bad_label, {nfc, "Label must be in Normalization Form C"}})
   end.
 
+check_hyphen(Label) -> check_hyphen(Label, true).
 
-
-check_hyphen(Label) when length(Label) >= 3 ->
+check_hyphen(Label, true) when length(Label) >= 3 ->
   case lists:nthtail(2, Label) of
     [$-, $-|_] ->
       ErrorMsg = error_msg("Label ~p has disallowed hyphens in 3rd and 4th position", [Label]),
@@ -137,13 +143,15 @@ check_hyphen(Label) when length(Label) >= 3 ->
           ok
       end
   end;
-check_hyphen(Label) ->
+check_hyphen(Label, true) ->
   case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
     true ->
       erlang:exit({bad_label, {hyphen, "Label must not start or end with a hyphen"}});
     false ->
       ok
-  end.
+  end;
+check_hyphen(_Label, false) ->
+  ok.
 
 check_initial_combiner([CP|_]) ->
   case idna_data:lookup(CP) of
@@ -153,42 +161,69 @@ check_initial_combiner([CP|_]) ->
       ok
   end.
 
-check_context(Label) -> check_context(Label, Label, 0).
+check_context(Label) ->
+  check_context(Label, Label, true, 0).
 
-check_context([CP | Rest], Label, Pos) ->
+check_context(Label, CheckJoiners) ->
+  check_context(Label, Label, CheckJoiners, 0).
+
+check_context([CP | Rest], Label, CheckJoiners, Pos) ->
   case idna_table:lookup(CP) of
     'PVALID' ->
-      check_context(Rest, Label, Pos + 1);
+      check_context(Rest, Label, CheckJoiners, Pos + 1);
     'CONTEXTJ' ->
-      case idna_context:valid_contextj(CP, Label, Pos) of
-        true ->
-          check_context(Rest, Label, Pos + 1);
-        false ->
-          ErrorMsg = error_msg("Joiner ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
-          erlang:exit({bad_label, {contextj, ErrorMsg}})
-
-      end;
+        ok =  valid_contextj(CP, Label, Pos, CheckJoiners),
+        check_context(Rest, Label, CheckJoiners, Pos + 1);
     'CONTEXTO' ->
-      case idna_context:valid_contexto(CP, Label, Pos) of
-        true ->
-          check_context(Rest, Label, Pos + 1);
-        false ->
-          ErrorMsg = error_msg("Joiner ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
-          erlang:exit({bad_label, {contexto, ErrorMsg}})
-      end;
+      ok =  valid_contexto(CP, Label, Pos, CheckJoiners),
+      check_context(Rest, Label, CheckJoiners, Pos + 1);
     _Status ->
       ErrorMsg = error_msg("Codepoint ~p not allowed (~p) at posion ~p in ~p", [CP, _Status, Pos, Label]),
       erlang:exit({bad_label, {context, ErrorMsg}})
   end;
-check_context([], _, _) ->
+check_context([], _, _, _) ->
   ok.
 
+
+valid_contextj(CP, Label, Pos, true) ->
+  case idna_context:valid_contextj(CP, Label, Pos) of
+    true ->
+      ok;
+    false ->
+      ErrorMsg = error_msg("Joiner ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
+      erlang:exit({bad_label, {contextj, ErrorMsg}})
+  end;
+valid_contextj(_CP, _Label, _Pos, false) ->
+  ok.
+
+valid_contexto(CP, Label, Pos, true) ->
+  case idna_context:valid_contexto(CP, Label, Pos) of
+    true ->
+      ok;
+    false ->
+      ErrorMsg = error_msg("Joiner ~p not allowed at posion ~p in ~p", [CP, Pos, Label]),
+      erlang:exit({bad_label, {contexto, ErrorMsg}})
+  end;
+valid_contexto(_CP, _Label, _Pos, false) ->
+  ok.
+
+
+
 check_label(Label) ->
+  check_label(Label, true, true, true).
+
+check_label(Label, CheckHyphens, CheckJoiners, CheckBidi) ->
   ok = check_nfc(Label),
-  ok = check_hyphen(Label),
+  ok = check_hyphen(Label, CheckHyphens),
   ok = check_initial_combiner(Label),
-  ok = check_context(Label),
-  ok = idna_bidi:check_bidi(Label),
+  ok = check_context(Label, CheckJoiners),
+  ok = check_bidi(Label, CheckBidi),
+  ok.
+
+
+check_bidi(Label, true) ->
+  idna_bidi:check_bidi(Label);
+check_bidi(_, false) ->
   ok.
 
 check_label_length(Label) when length(Label) > 63 ->
@@ -197,23 +232,31 @@ check_label_length(Label) when length(Label) > 63 ->
 check_label_length(_) ->
   ok.
 
-alabel([$x,$n,$-,$-|_]=Label0) ->
-  Label1 = try ulabel(Label0)
-          catch
-            _:_ ->
-              ErrorMsg = error_msg("The label ~p  is not a valid A-label", [Label0]),
-              erlang:exit({bad_label, {alabel, ErrorMsg}})
-          end,
-  Label = ?ACE_PREFIX ++ punycode:encode(Label1),
-  if
-    Label == Label0 -> Label;
-    true ->
-      ErrorMsg2 = error_msg("The label ~p  s not a valid A-label", [Label0]),
-      erlang:exit({bad_label, {alabel, ErrorMsg2}})
-  end;
+%alabel([$x,$n,$-,$-|_]=Label0) ->
+%  Label1 = try ulabel(Label0)
+%          catch
+%            _:_ ->
+%              ErrorMsg = error_msg("The label ~p  is not a valid A-label", [Label0]),
+%              erlang:exit({bad_label, {alabel, ErrorMsg}})
+%          end,
+%  Label = ?ACE_PREFIX ++ punycode:encode(Label1),
+%  if
+%    Label == Label0 -> Label;
+%    true ->
+%      ErrorMsg2 = error_msg("The label ~p  s not a valid A-label", [Label0]),
+%      erlang:exit({bad_label, {alabel, ErrorMsg2}})
+%  end;
 alabel(Label0) ->
   Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
             true ->
+              _ = try ulabel(Label0)
+                  catch
+                    _:Error ->
+                      ErrorMsg = error_msg("The label ~p  is not a valid A-label: ulabel error=~p", [Label0, Error]),
+                      erlang:exit({bad_label, {alabel, ErrorMsg}})
+                  end,
+              ok = check_label_length(Label0),
+
               Label0;
             false ->
               ok = check_label(Label0),
@@ -229,6 +272,7 @@ decode_1([Label|Labels], []) ->
 decode_1([Label|Labels], Acc) ->
   decode_1(Labels, lists:reverse(ulabel(Label), [$.|Acc])).
 
+ulabel([]) -> [];
 ulabel(Label0) ->
   Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
             true ->
@@ -239,21 +283,10 @@ ulabel(Label0) ->
                   lowercase(Label0)
               end;
             false ->
-              Label0
+              lowercase(Label0)
           end,
   ok = check_label(Label),
   Label.
-
-%ulabel([$x,$n,$-,$-|Label0]) ->
-%  Label = punycode:decode(lowercase(Label0)),
-%  io:format("after decode ulabel ~p~n", [Label]),
-%  ok = check_label(Label),
-%  Label;
-%ulabel(Label) ->
-%  io:format("ulabel ~p~n", [Label]),
-%  ok = check_label(lowercase(Label)),
-%  Label.
-
 
 %% Lowercase all chars in Str
 -spec lowercase(String::unicode:chardata()) -> unicode:chardata().
@@ -326,7 +359,7 @@ characters_to_nfc_list(CD) ->
     [] -> []
   end.
 
-%%uts46_remap("[$x,$n,$-,$-|_"=Str, _, _) -> Str;
+
 uts46_remap(Str, Std3Rules, Transitional) ->
   characters_to_nfc_list(uts46_remap_1(Str, Std3Rules, Transitional)).
 
@@ -334,6 +367,7 @@ uts46_remap_1([Cp|Rs], Std3Rules, Transitional) ->
   Row = try idna_mapping:uts46_map(Cp)
         catch
           error:badarg  ->
+            ?LOG_ERROR("codepoint ~p not found in mapping list~n", [Cp]),
             erlang:exit({invalid_codepoint, Cp})
         end,
   {Status, Replacement} = case Row of

@@ -95,7 +95,6 @@ to_digit(_) -> exit(badarg).
 %% the DNS limit on domain name labels.
 -spec decode(string()) -> string().
 decode(Input) ->
-
   {Output, Input2} = case string:rstr(Input, [?DELIMITER]) of
              0 -> {"", Input};
              Pos ->
