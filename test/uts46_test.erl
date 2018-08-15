@@ -39,7 +39,7 @@ uts46_conformance_test() ->
   Data = load_file(),
 
   lists:foreach(
-    fun({Source, ToUnicode, ToUnicodeStatus, ToAsciiN, ToAsciiNStatus, ToAsciiT, _ToAsciiTStatus}=_Row) ->
+    fun({Source, ToUnicode, ToUnicodeStatus, ToAsciiN, ToAsciiNStatus, ToAsciiT, ToAsciiTStatus}=_Row) ->
         Ignored = (lists:member(Source, ?SKIP_TESTS)
                    orelse lists:member(ToAsciiN, ?SKIP_TESTS)
                    orelse lists:member(ToAsciiT, ?SKIP_TESTS)),
@@ -47,9 +47,6 @@ uts46_conformance_test() ->
       case Ignored of
         true -> ok;
         false ->
-
-
-
           CheckUnicode = ToUnicodeStatus == [] andalso ToUnicode /= "",
           case CheckUnicode of
             true ->
@@ -68,10 +65,16 @@ uts46_conformance_test() ->
               ?assertEqual(ToAsciiN, idna:encode(Source, [uts46, {transitional, false}]));
             false ->
               ok
+          end,
+
+          CheckToAsciiT = ToAsciiT /= "" andalso ToAsciiTStatus == [],
+          case CheckToAsciiT of
+            true ->
+              %?debugFmt("test rown=~p~n", [_Row]),
+              ?assertEqual(ToAsciiT, idna:encode(Source, [uts46, {transitional, true}]));
+            false ->
+              ok
           end
-
-
-
       end
     end,
     Data
