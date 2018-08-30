@@ -76,7 +76,7 @@ gen_file(Fd, Data) ->
 
 gen_header(Fd) ->
   io:put_chars(Fd, "%%\n%% this file is generated do not modify\n"),
-  io:put_chars(Fd, "%% see ../uc_spec/gen_unicode_mod.escript\n\n"),
+  io:put_chars(Fd, "%% see ../uc_spec/gen_idna_mapping.escript\n\n"),
   io:put_chars(Fd, "-module(" ++ ?MOD ++").\n"),
   io:put_chars(Fd, "-compile(compressed).\n"),
   io:put_chars(Fd, "-export([uts46_map/1]).\n"),

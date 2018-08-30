@@ -1,6 +1,6 @@
 %%
 %% this file is generated do not modify
-%% see ../uc_spec/gen_unicode_mod.escript
+%% see ../uc_spec/gen_idna_mapping.escript
 
 -module(idna_mapping).
 -compile(compressed).
