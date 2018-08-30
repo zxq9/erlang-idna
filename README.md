@@ -40,7 +40,7 @@ example:
 ```
 
 
-Legacy support of IDNA 2003 and `to_ascii` and `to_unicode` functions is also available:
+Legacy support of IDNA 2003 is also available with  `to_ascii` and `to_unicode` functions:
 
 
 ```erlang
