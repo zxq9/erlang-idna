@@ -3,7 +3,7 @@
 A pure Erlang IDNA implementation that folllow the [RFC5891](https://tools.ietf.org/html/rfc5891).
 
 * support IDNA 2008 and IDNA 2003.
-* label validation: 
+* label validation:
     - [x] **check NFC**: Label must be in Normalization Form C
     - [x] **check hyphen**: The Unicode string MUST NOT contain "--" (two consecutive hyphens) in
     the third and fourth character positions and MUST NOT start or end
@@ -19,14 +19,22 @@ A pure Erlang IDNA implementation that folllow the [RFC5891](https://tools.ietf.
 
 ## Usage
 
-By default 
 
-with UTS46 processing:
+
+`idna:encode/{1,2}` and `idna:decode/{1, 2}` functions are used to encode or decode an Internationalized Domain
+Names using IDNA protocol.
+
+Input can be mapped to unicode using [uts46](https://unicode.org/reports/tr46/#Introduction)
+by setting  the `uts46` flag to true (default is false). If transition from IDNA 2003 to
+IDNA 2008 is needed, the flag `transitional` can be set to `true`, (`default` is false). If
+conformance to STD3 is needed, the flag `std3_rules` can be set to true. (default is `false`).
+
+example:
 
 ```erlang
-1> idna:encode("日本語。ＪＰ", []).
+1> idna:encode("日本語。ＪＰ", [uts46]).
 "xn--wgv71a119e.xn--jp-"
-2> idna:encode("日本語.ＪＰ", []).
+2> idna:encode("日本語.ＪＰ", [uts46]).
 "xn--wgv71a119e.xn--jp-"
 ...
 ```
@@ -34,11 +42,12 @@ with UTS46 processing:
 
 Legacy support of IDNA 2003 and `to_ascii` and `to_unicode` functions is also available:
 
+
 ```erlang
 1> Domain = "www.詹姆斯.com".
 [119,119,119,46,35449,22982,26031,46,99,111,109]
-2> Encoded =  idna:to_ascii("www.詹姆斯.com").   
-"www.xn--8ws00zhy3a.com"   
+2> Encoded =  idna:to_ascii("www.詹姆斯.com").
+"www.xn--8ws00zhy3a.com"
 3> idna:to_unicode(Encoded).
 [119,119,119,46,35449,22982,26031,46,99,111,109]
 ```
