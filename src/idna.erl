@@ -33,9 +33,24 @@
 -include("idna_logger.hrl").
 
 
+-type idna_flags() :: [{uts46, boolean()} |
+                       {std3_rules, boolean()} |
+                       {transitional, boolean()}].
+
+
+
+%% @doc encode Internationalized Domain Names using IDNA protocol
+-spec encode(string()) -> string().
 encode(Domain) ->
   encode(Domain, []).
 
+
+%% @doc encode Internationalized Domain Names using IDNA protocol.
+%% Input can be mapped to uniccode using [uts46](https://unicode.org/reports/tr46/#Introduction)
+%% by setting  the `uts46` flag to true (default is false). If transition from IDNA 2003 to
+%% IDNA 2008 is needed, the flag `transitional` can be set to `true`, (`default` is false). If
+%% conformance to STD3 is needed, the flag `std3_rules` can be set to true. (default is `false`).
+-spec encode(string(), idna_flags()) -> string().
 encode(Domain0, Options) ->
   ok = validate_options(Options),
   Domain = case proplists:get_value(uts46, Options, false) of
@@ -58,9 +73,13 @@ encode(Domain0, Options) ->
       encode_1(Labels, [])
   end.
 
+%% @doc decode an International Domain Name encoded with the IDNA protocol
+-spec decode(string()) -> string().
 decode(Domain) ->
   decode(Domain, []).
 
+%% @doc decode an International Domain Name encoded with the IDNA protocol
+-spec decode(string(), idna_flags()) -> string().
 decode(Domain0, Options) ->
   ok = validate_options(Options),
   Domain = case proplists:get_value(uts46, Options, false) of
@@ -88,13 +107,19 @@ decode(Domain0, Options) ->
 %% Compatibility API
 %%
 
+%% @doc encode an International Domain Name to IDNA protocol (compatibility API)
+-spec to_ascii(string()) -> string().
 to_ascii(Domain) -> encode(Domain).
+
+%% @doc decode an an encoded International Domain Nam eusing thz IDNA protocol (compatibility API)
+-spec to_unicode(string()) -> string().
 to_unicode(Domain) -> decode(Domain).
 
 
 utf8_to_ascii(Domain) ->
   to_ascii(idna_ucs:from_utf8(Domain)).
 
+%% @doc like `to_ascii/1'
 -spec from_ascii(nonempty_string()) -> nonempty_string().
 from_ascii(Domain) ->
   decode(Domain).
@@ -211,9 +236,17 @@ valid_contexto(_CP, _Label, _Pos, false) ->
 
 
 
+-spec check_label(string()) -> ok.
 check_label(Label) ->
   check_label(Label, true, true, true).
 
+%% @doc validate a label of  a domain
+-spec check_label(Label, CheckHyphens, CheckJoiners, CheckBidi) -> Result when
+    Label :: string(),
+    CheckHyphens :: boolean(),
+    CheckJoiners :: boolean(),
+    CheckBidi :: boolean(),
+    Result :: ok.
 check_label(Label, CheckHyphens, CheckJoiners, CheckBidi) ->
   ok = check_nfc(Label),
   ok = check_hyphen(Label, CheckHyphens),
