@@ -47,9 +47,9 @@ encode(Domain) ->
 
 %% @doc encode Internationalized Domain Names using IDNA protocol.
 %% Input can be mapped to uniccode using [uts46](https://unicode.org/reports/tr46/#Introduction)
-%% by setting  the `uts46` flag to true (default is false). If transition from IDNA 2003 to
-%% IDNA 2008 is needed, the flag `transitional` can be set to `true`, (`default` is false). If
-%% conformance to STD3 is needed, the flag `std3_rules` can be set to true. (default is `false`).
+%% by setting  the `uts46' flag to `true' (default is `false'). If transition from IDNA 2003 to
+%% IDNA 2008 is needed, the flag `transitional' can be set to `true', (default is `false'). If
+%% conformance to STD3 is needed, the flag `std3_rules' can be set to `true'. (default is `false').
 -spec encode(string(), idna_flags()) -> string().
 encode(Domain0, Options) ->
   ok = validate_options(Options),
