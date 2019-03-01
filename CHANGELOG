@@ -6,6 +6,9 @@
 - International Domain Name validation
 - fix [Punycode](https://tools.ietf.org/html/rfc3492) algorithm
 
+Breaking changes:
+- `idna:to_ascii/1` in 5.1.x did not encode or enforce rules if the input is already all ascii
+
 == 5.1.2 - 2018-06-09
 
 - support build with rebar 2
