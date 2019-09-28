@@ -28,7 +28,7 @@ valid_contextj(Label, Pos) ->
 valid_contextj(16#200c, Label, Pos) ->
   if
      Pos > 0 ->
-       case unicode_util_compat:lookup(lists:nth(Pos, Label)) of
+       case unicode_util:lookup(lists:nth(Pos, Label)) of
          #{ ccc := ?virama_combining_class } -> true;
          _ ->
            valid_contextj_1(Label, Pos)
@@ -38,7 +38,7 @@ valid_contextj(16#200c, Label, Pos) ->
   end;
 
 valid_contextj(16#200d, Label, Pos) when Pos > 0 ->
-  case unicode_util_compat:lookup(lists:nth(Pos, Label)) of
+  case unicode_util:lookup(lists:nth(Pos, Label)) of
     #{ ccc := ?virama_combining_class } -> true;
     _ -> false
   end;
