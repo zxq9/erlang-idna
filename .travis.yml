@@ -1,7 +1,6 @@
 language: erlang
 otp_release:
   - 21.3
-  - 22
 before_script:
     - "./bootstrap_travis.sh"
 script: "./rebar3 eunit"
