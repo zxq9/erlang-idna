@@ -1,8 +1,8 @@
 {"1.2.0",
-[{<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.6.0">>},0}]}.
+[{<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.7.0">>},0}]}.
 [
 {pkg_hash,[
- {<<"unicode_util_compat">>, <<"BA4E60F9A4C80C183DC6EF36BC6C817AA0C3EA47E4F33568462962BE303285B1">>}]},
+ {<<"unicode_util_compat">>, <<"BC84380C9AB48177092F43AC89E4DFA2C6D62B40B8BD132B1059ECC7232F9A78">>}]},
 {pkg_hash_ext,[
- {<<"unicode_util_compat">>, <<"D6BD0945F56760C5941F6A8C0680552C32480DEAB213F65A646D68C9794C8399">>}]}
+ {<<"unicode_util_compat">>, <<"25EEE6D67DF61960CF6A794239566599B09E17E668D3700247BC498638152521">>}]}
 ].
