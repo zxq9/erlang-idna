@@ -3,7 +3,7 @@
 == 6.1.0 - 2020-12-05
 
 - update to Unicode 13.0.0
-- bump unicode_util_compat to 0.6.0
+- bump unicode_util_compat to 0.7.0
 - remove support of Erlang < 19.3
 - remove support of rebar 2
 
