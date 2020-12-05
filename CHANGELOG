@@ -1,5 +1,9 @@
 # CHANGELOG
 
+== 6.1.1 - 2020-12-06
+
+- fix license information
+
 == 6.1.0 - 2020-12-05
 
 - update to Unicode 13.0.0
