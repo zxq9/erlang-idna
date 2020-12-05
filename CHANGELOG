@@ -1,5 +1,9 @@
 # CHANGELOG
 
+== 7.0.0 - unreleased
+
+- remove unicode_compat. only support Erlang >= 20
+
 == 6.1.1 - 2020-12-06
 
 - fix license information

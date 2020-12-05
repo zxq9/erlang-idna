@@ -337,7 +337,7 @@ lowercase_list([], true) ->
 lowercase_list([], false) ->
   throw(unchanged);
 lowercase_list(CPs0, Changed) ->
-  case unicode_util_compat:lowercase(CPs0) of
+  case unicode_util:lowercase(CPs0) of
     [Char|CPs] when Char =:= hd(CPs0) -> [Char|lowercase_list(CPs, Changed)];
     [Char|CPs] -> append(Char,lowercase_list(CPs, true));
     [] -> lowercase_list([], Changed)
@@ -350,9 +350,9 @@ lowercase_bin(CP1, <<CP2/utf8, Bin/binary>>, Changed)
   when CP1 < 128, CP2 < 256 ->
   [CP1|lowercase_bin(CP2, Bin, Changed)];
 lowercase_bin(CP1, Bin, Changed) ->
-  case unicode_util_compat:lowercase([CP1|Bin]) of
+  case unicode_util:lowercase([CP1|Bin]) of
     [CP1|CPs] ->
-      case unicode_util_compat:cp(CPs) of
+      case unicode_util:cp(CPs) of
         [Next|Rest] ->
           [CP1|lowercase_bin(Next, Rest, Changed)];
         [] when Changed ->
@@ -361,7 +361,7 @@ lowercase_bin(CP1, Bin, Changed) ->
           throw(unchanged)
       end;
     [Char|CPs] ->
-      case unicode_util_compat:cp(CPs) of
+      case unicode_util:cp(CPs) of
         [Next|Rest] ->
           [Char|lowercase_bin(Next, Rest, true)];
         [] ->
@@ -378,7 +378,7 @@ append(GC, Str) when is_list(GC) -> GC ++ Str.
 
 
 characters_to_nfc_list(CD) ->
-  case unicode_util_compat:nfc(CD) of
+  case unicode_util:nfc(CD) of
     [CPs|Str] when is_list(CPs) -> CPs ++ characters_to_nfc_list(Str);
     [CP|Str] -> [CP|characters_to_nfc_list(Str)];
     [] -> []
