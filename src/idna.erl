@@ -347,7 +347,7 @@ check_label_length(Label) ->
 
 uts46_remap(Str, Std3Rules, Transitional) ->
     case uts46_remap(Str, Std3Rules, Transitional, []) of
-        {ok, Remapped} -> unicode:characters_to_nfc_list(Remapped);
+        {ok, Remapped} -> unicode:characters_to_nfc_list(lists:reverse(Remapped));
         Error          -> Error
     end.
 
