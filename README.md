@@ -1,7 +1,28 @@
-## erlang-idna
+# erlang-idna
 
 A pure Erlang IDNA implementation that folllow the [RFC5891](https://tools.ietf.org/html/rfc5891).
 
+
+## Usage
+`idna:encode/{1,2}` and `idna:decode/{1, 2}` functions are used to encode or decode an Internationalized Domain
+Names using IDNA protocol.
+
+### Basic use example:
+```erlang
+1> IDNA_Name = "日本.foo.何かの日本語.jp".                                  
+[26085,26412,46,102,111,111,46,20309,12363,12398,26085,26412,35486,46,106,112]
+2> {ok, Encoded} = idna:encode(IDNA_Name).
+{ok,"xn--wgv71a.foo.xn--u8jtd599ig7tzobtz6h.jp"}
+3> {ok, Decoded} = idna:decode(Encoded).
+{ok,[26085,26412,46,102,111,111,46,20309,12363,12398,26085,26412,35486,46,106,112]}
+4> io:format("~ts~n", [Decoded]).
+日本.foo.何かの日本語.jp
+ok
+5> Decoded =:= IDNA_Name.
+true
+```
+
+## Features
 * support IDNA 2008 and IDNA 2003.
 * label validation:
     - [x] **check NFC**: Label must be in Normalization Form C
@@ -15,39 +36,14 @@ A pure Erlang IDNA implementation that folllow the [RFC5891](https://tools.ietf.
     written from right to left, it MUST meet the Bidi criteria  [rfc5893](https://tools.ietf.org/html/rfc5893)
 
 
-
-
-## Usage
-
-`idna:encode/{1,2}` and `idna:decode/{1, 2}` functions are used to encode or decode an Internationalized Domain
-Names using IDNA protocol.
-
-basic example:
-
-```erlang
-1> IDNA_Name = "日本.foo.何かの日本語.jp".                                  
-[26085,26412,46,102,111,111,46,20309,12363,12398,26085,
- 26412,35486,46,106,112]
-2> {ok, Encoded} = idna:encode(IDNA_Name).
-{ok,"xn--wgv71a.foo.xn--u8jtd599ig7tzobtz6h.jp"}
-3> {ok, Decoded} = idna:decode(Encoded).
-{ok,[26085,26412,46,102,111,111,46,20309,12363,12398,26085,
-     26412,35486,46,106,112]}
-4> io:format("~ts~n", [Decoded]).
-日本.foo.何かの日本語.jp
-ok
-5> Decoded =:= IDNA_Name.
-true
-```
-
-
+## Compatibility options
 Input can be mapped to unicode using [uts46](https://unicode.org/reports/tr46/#Introduction)
 by setting  the `uts46` flag to true (default is false). If transition from IDNA 2003 to
 IDNA 2008 is needed, the flag `transitional` can be set to `true`, (`default` is false). If
 conformance to STD3 is needed, the flag `std3_rules` can be set to true. (default is `false`).
 
-example:
 
+### Compat mode example:
 ```erlang
 1> idna:encode("日本語。ＪＰ", [uts46]).
 {ok, "xn--wgv71a119e.xn--jp-"}
@@ -55,10 +51,9 @@ example:
 {ok, "xn--wgv71a119e.xn--jp-"}
 ```
 
-
 ## Updating Unicode data
 
-```shell
+```bash
 wget -O test/IdnaTestV2.txt https://www.unicode.org/Public/idna/latest/IdnaTestV2.txt
 wget -O uc_spec/ArabicShaping.txt https://www.unicode.org/Public/UNIDATA/ArabicShaping.txt
 wget -O uc_spec/IdnaMappingTable.txt https://www.unicode.org/Public/idna/latest/IdnaMappingTable.txt
