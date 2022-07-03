@@ -64,7 +64,7 @@ encode1([C | Rest], Output, H, B, N, Delta, Bias) when C == N ->
     encode2(Rest, Output, H, B, N, Delta, Bias, Delta, ?BASE);
 encode1([_ | Rest], Output, H, B, N, Delta, Bias) ->
     encode1(Rest, Output, H, B, N, Delta, Bias);
-encode1([], Output, H, _B, N, Delta, Bias) ->
+encode1([], Output, H, _, N, Delta, Bias) ->
     {Output, H, Delta + 1, N + 1, Bias}.
 
 encode2(Rest, Output, H, B, N, Delta, Bias, Q, K) when K =< Bias ->
@@ -203,7 +203,7 @@ adapt(Delta, NumPoints, FirstTime) ->
     adapt(Delta2 + (Delta2 div NumPoints), 0).
 
 adapt(Delta, K) ->
-  case Delta > (((?BASE - ?TMIN) * ?TMAX) div 2) of
-    true  -> adapt(Delta div (?BASE - ?TMIN), K + ?BASE);
-    false -> K + (((?BASE - ?TMIN + 1) * Delta) div (Delta + ?SKEW))
-  end.
+    case Delta > (((?BASE - ?TMIN) * ?TMAX) div 2) of
+        true  -> adapt(Delta div (?BASE - ?TMIN), K + ?BASE);
+        false -> K + (((?BASE - ?TMIN + 1) * Delta) div (Delta + ?SKEW))
+    end.
