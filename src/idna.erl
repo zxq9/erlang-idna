@@ -9,413 +9,385 @@
 -export([encode/1, encode/2,
          decode/1, decode/2]).
 
-%% compatibility API
--export([to_ascii/1,
-         to_unicode/1,
-         utf8_to_ascii/1,
-         from_ascii/1]).
+-export([check_label/1, check_label/2]).
 
-
--export([alabel/1, ulabel/1]).
-
--export([check_hyphen/1,
-         check_nfc/1,
-         check_context/1,
-         check_initial_combiner/1,
-         check_label_length/1]).
-
--export([check_label/1, check_label/4]).
+-export_type([errors/0]).
 
 -define(ACE_PREFIX, "xn--").
 
--ifdef('OTP_RELEASE').
--define(lower(C), string:lowercase(C)).
--else.
--define(lower(C), string:to_lower(C)).
--endif.
 
--include("idna_logger.hrl").
+-type idna_flags() :: [Flag :: {uts46, boolean()}
+                             | {std3_rules, boolean()}
+                             | {transitional, boolean()}].
+
+-type errors() :: empty_domain
+                | bad_option
+                | bad_label
+                | too_long
+                | nfc
+                | hyphen
+                | initial_combiner
+                | {context, string()}
+                | {contextj, string()}
+                | {contexto, string()}
+                | {invalid_codepoint, integer()}
+                | {bidi, string()}
+                | overflow
+                | badarg.
 
 
--type idna_flags() :: [{uts46, boolean()} |
-                       {std3_rules, boolean()} |
-                       {transitional, boolean()}].
-
-
-
+-spec encode(String) -> Result
+    when String      :: unicode:chardata(),
+         Result      :: {ok, IDNA_String} | {error, Reason},
+         IDNA_String :: string(),
+         Reason      :: errors().
 %% @doc encode Internationalized Domain Names using IDNA protocol
--spec encode(string()) -> string().
+
 encode(Domain) ->
-  encode(Domain, []).
+    encode(Domain, []).
 
 
+-spec encode(String, Flags) -> Result
+    when String      :: unicode:chardata(),
+         Flags       :: idna_flags(),
+         Result      :: {ok, IDNA_String} | {error, Reason},
+         IDNA_String :: string(),
+         Reason      :: errors().
 %% @doc encode Internationalized Domain Names using IDNA protocol.
-%% Input can be mapped to unicode using [uts46](https://unicode.org/reports/tr46/#Introduction)
-%% by setting  the `uts46' flag to `true' (default is `false'). If transition from IDNA 2003 to
-%% IDNA 2008 is needed, the flag `transitional' can be set to `true', (default is `false'). If
-%% conformance to STD3 is needed, the flag `std3_rules' can be set to `true'. (default is `false').
--spec encode(string(), idna_flags()) -> string().
-encode(Domain0, Options) ->
-  ok = validate_options(Options),
-  Domain = case proplists:get_value(uts46, Options, false) of
-             true ->
-               STD3Rules = proplists:get_value(std3_rules, Options, false),
-               Transitional = proplists:get_value(transitional, Options, false),
-               uts46_remap(Domain0, STD3Rules, Transitional);
-             false ->
-               Domain0
-           end,
-  Labels = case proplists:get_value(strict, Options, false) of
-             false ->
-               re:split(Domain, "[.。．｡]", [{return, list}, unicode]);
-             true ->
-               string:tokens(Domain, ".")
-           end,
-  case Labels of
-    [] -> exit(empty_domain);
-    _ ->
-      encode_1(Labels, [])
-  end.
+%% Input can be mapped to unicode using
+%% [uts46](https://unicode.org/reports/tr46/#Introduction)
+%% by setting the `uts46' flag to `true' (default is `false'). If transition from
+%% IDNA 2003 to IDNA 2008 is needed, the flag `transitional' can be set to `true',
+%% (default is `false'). If conformance to STD3 is needed, the flag `std3_rules'
+%% can be set to `true'. (default is `false').
 
+encode(String, Options) ->
+    Validated = validate_options(Options),
+    Target =
+        case proplists:get_value(uts46, Validated, false) of
+            true ->
+                STD3Rules = proplists:get_value(std3_rules, Validated, false),
+                Transitional = proplists:get_value(transitional, Validated, false),
+                uts46_remap(String, STD3Rules, Transitional);
+            false ->
+                String
+        end,
+    Labels =
+        case proplists:get_value(strict, Validated, false) of
+            false -> re:split(Target, "[.。．｡]", [{return, list}, unicode]);
+            true  -> string:tokens(Target, ".")
+        end,
+    encode2(Labels).
+
+
+-spec decode(IDNA_String) -> Result
+    when IDNA_String :: string(),
+         Result      :: {ok, String} | {error, Reason},
+         String      :: string(),
+         Reason      :: errors().
 %% @doc decode an International Domain Name encoded with the IDNA protocol
--spec decode(string()) -> string().
-decode(Domain) ->
-  decode(Domain, []).
 
+decode(IDNA_String) ->
+    decode(IDNA_String, []).
+
+
+-spec decode(IDNA_String, Flags) -> Result
+    when IDNA_String :: string(),
+         Flags       :: idna_flags(),
+         Result      :: {ok, String} | {error, Reason},
+         String      :: string(),
+         Reason      :: errors().
 %% @doc decode an International Domain Name encoded with the IDNA protocol
--spec decode(string(), idna_flags()) -> string().
-decode(Domain0, Options) ->
-  ok = validate_options(Options),
-  Domain = case proplists:get_value(uts46, Options, false) of
-             true ->
-               STD3Rules = proplists:get_value(std3_rules, Options, false),
-               Transitional = proplists:get_value(transitional, Options, false),
-               uts46_remap(Domain0, STD3Rules, Transitional);
-             false ->
-               Domain0
-           end,
 
-  Labels = case proplists:get_value(strict, Options, false) of
-             false ->
-               re:split(lowercase(Domain), "[.。．｡]", [{return, list}, unicode]);
-             true ->
-               string:tokens(lowercase(Domain), ".")
-           end,
-  case Labels of
-    [] -> exit(empty_domain);
-    _ ->
-      decode_1(Labels, [])
-  end.
+decode(IDNA_String, Options) ->
+    Validated = validate_options(Options),
+    Target =
+        case proplists:get_value(uts46, Validated, false) of
+            true ->
+                STD3Rules = proplists:get_value(std3_rules, Validated, false),
+                Transitional = proplists:get_value(transitional, Validated, false),
+                uts46_remap(IDNA_String, STD3Rules, Transitional);
+            false ->
+                IDNA_String
+        end,
+    Lowered = string:lowercase(Target),
+    Labels =
+        case proplists:get_value(strict, Validated, false) of
+            false -> re:split(Lowered, "[.。．｡]", [{return, list}, unicode]);
+            true  -> string:tokens(Lowered, ".")
+        end,
+    decode2(Labels).
 
 
-%% Compatibility API
-%%
+-spec check_label(string()) -> ok | {error, bad_label}.
 
-%% @doc encode an International Domain Name to IDNA protocol (compatibility API)
--spec to_ascii(string()) -> string().
-to_ascii(Domain) -> encode(Domain).
-
-%% @doc decode an an encoded International Domain Name using the IDNA protocol (compatibility API)
--spec to_unicode(string()) -> string().
-to_unicode(Domain) -> decode(Domain).
+check_label(Label) ->
+    check_label(Label, [nfc, combiner, hyphens, joiners, bidi, length]).
 
 
-utf8_to_ascii(Domain) ->
-  to_ascii(idna_ucs:from_utf8(Domain)).
+-spec check_label(Label, Checks) -> Result
+    when Label  :: string(),
+         Checks :: [Check],
+         Check  :: nfc | combiner | hyphens | joiners | bidi,
+         Result :: ok | {error, {bad_label, Check}}.
+%% @doc validate a label of  a domain
 
-%% @doc like `to_ascii/1'
--spec from_ascii(nonempty_string()) -> nonempty_string().
-from_ascii(Domain) ->
-  decode(Domain).
+check_label(Label, Checks) ->
+    do_checks(Label, lists:map(fun map_check/1, Checks)).
 
 
-%% Helper functions
-%%
 
-validate_options([]) -> ok;
-validate_options([uts46|Rs]) -> validate_options(Rs);
-validate_options([{uts46, B}|Rs]) when is_boolean(B) -> validate_options(Rs);
-validate_options([strict|Rs]) -> validate_options(Rs);
-validate_options([{strict, B}|Rs]) when is_boolean(B) -> validate_options(Rs);
-validate_options([std3_rules|Rs]) -> validate_options(Rs);
-validate_options([{std3_rules, B}|Rs]) when is_boolean(B) -> validate_options(Rs);
-validate_options([transitional|Rs]) -> validate_options(Rs);
-validate_options([{transitional, B}|Rs]) when is_boolean(B) -> validate_options(Rs);
-validate_options([_]) -> erlang:error(badarg).
+%%% Implementation
 
-encode_1([], Acc) ->
-  lists:reverse(Acc);
-encode_1([Label|Labels], []) ->
-  encode_1(Labels, lists:reverse(alabel(Label)));
-encode_1([Label|Labels], Acc) ->
-  encode_1(Labels, lists:reverse(alabel(Label), [$.|Acc])).
+validate_options([Option | Rest]) when is_atom(Option) ->
+    [{Option, true} | validate_options(Rest)];
+validate_options([Option | Rest]) when is_tuple(Option) ->
+    [Option | validate_options(Rest)];
+validate_options([]) ->
+    [].
+
+
+alabel(Label) ->
+    case lists:all(fun(C) -> is_ascii(C) end, Label) of
+        true  -> alabel_ascii(Label);
+        false -> alabel_puny(Label)
+    end.
+
+alabel_ascii(Label) ->
+    case ulabel(Label) of
+        {ok, _} ->
+            case check_label_length(Label) of
+                ok    -> {ok, Label};
+                Error -> Error
+            end;
+        Error ->
+            Error
+    end.
+
+alabel_puny(Label) ->
+    case check_label(Label) of
+        ok ->
+            case punycode:encode(Label) of
+                {ok, Encoded} ->
+                    case check_label_length(Encoded) of
+                        ok    -> {ok, ?ACE_PREFIX ++ Encoded};
+                        Error -> Error
+                    end;
+                Error ->
+                    Error
+            end;
+        Error ->
+            Error
+    end.
+
+
+ulabel("") ->
+    {ok, ""};
+ulabel(Label) ->
+    case lists:all(fun(C) -> is_ascii(C) end, Label) of
+        true  -> ulabel_ascii(Label);
+        false -> ulabel_wild(Label)
+    end.
+
+ulabel_ascii("xn--" ++ Encoded) ->
+    case punycode:decode(string:lowercase(Encoded)) of
+        {ok, Decoded} ->
+            case check_label(Decoded) of
+                ok    -> {ok, Decoded};
+                Error -> Error
+            end;
+        Error ->
+            Error
+    end;
+ulabel_ascii(Label) ->
+    ulabel_wild(Label).
+
+
+ulabel_wild(Label) ->
+    Lowered = string:lowercase(Label),
+    case check_label(Lowered) of
+        ok    -> {ok, Lowered};
+        Error -> Error
+    end.
+
+
+encode2([])     -> {error, empty_domain};
+encode2(Labels) -> encode3(Labels, []).
+
+
+encode3([], Acc) ->
+    {ok, unicode:characters_to_list(lists:reverse(Acc))};
+encode3([Label | Rest], []) ->
+    case alabel(Label) of
+        {ok, Converted} -> encode3(Rest, Converted);
+        Error           -> Error
+    end;
+encode3([Label | Rest], Acc) ->
+    case alabel(Label) of
+        {ok, Converted} -> encode3(Rest, [Converted, $. | Acc]);
+        Error           -> Error
+    end.
+
+
+decode2([])     -> {error, empty_domain};
+decode2(Labels) -> decode3(Labels, []).
+
+decode3([], Acc) ->
+    {ok, unicode:characters_to_list(lists:reverse(Acc))};
+decode3([Label | Rest], []) ->
+    case ulabel(Label) of
+        {ok, Converted} -> decode3(Rest, Converted);
+        Error           -> Error
+    end;
+decode3([Label | Rest], Acc) ->
+    case ulabel(Label) of
+        {ok, Converted} -> decode3(Rest, [Converted, $. | Acc]);
+        Error           -> Error
+    end.
+
+
+do_checks(Label, [Check | Rest]) ->
+    case Check(Label) of
+        ok    -> do_checks(Label, Rest);
+        Error -> Error
+    end;
+do_checks(_, []) ->
+    ok.
+
+map_check(nfc)      -> fun check_nfc/1;
+map_check(combiner) -> fun check_initial_combiner/1;
+map_check(hyphens)  -> fun check_hyphen/1;
+map_check(joiners)  -> fun check_context/1;
+map_check(bidi)     -> fun idna_bidi:check_bidi/1;
+map_check(length)   -> fun check_label_length/1.
+
 
 check_nfc(Label) ->
-  case characters_to_nfc_list(Label) of
-    Label -> ok;
-    _ ->
-      erlang:exit({bad_label, {nfc, "Label must be in Normalization Form C"}})
-  end.
+    case unicode:characters_to_nfc_list(Label) of
+        Label -> ok;
+        _     -> {error, nfc}
+    end.
 
-check_hyphen(Label) -> check_hyphen(Label, true).
 
-check_hyphen(Label, true) when length(Label) >= 3 ->
-  case lists:nthtail(2, Label) of
-    [$-, $-|_] ->
-      ErrorMsg = error_msg("Label ~p has disallowed hyphens in 3rd and 4th position", [Label]),
-      erlang:exit({bad_label, {hyphen, ErrorMsg}});
-    _ ->
-      case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
-        true ->
-          ErrorMsg = error_msg("Label ~p must not start or end with a hyphen", [Label]),
-          erlang:exit({bad_label, {hyphen, ErrorMsg}});
-        false ->
-          ok
-      end
-  end;
-check_hyphen(Label, true) ->
-  case (lists:nth(1, Label) == $-) orelse (lists:last(Label) == $-) of
-    true ->
-      ErrorMsg = error_msg("Label ~p must not start or end with a hyphen", [Label]),
-      erlang:exit({bad_label, {hyphen, ErrorMsg}});
-    false ->
-      ok
-  end;
-check_hyphen(_Label, false) ->
-  ok.
+check_hyphen([$- | _]) ->
+    {error, hyphen};
+check_hyphen([_, _, $-, $- | _]) ->
+    {error, hyphen};
+check_hyphen(Label) ->
+    case lists:last(Label) =:= $- of
+        false -> ok;
+        true  -> {error, hyphen}
+    end.
 
-check_initial_combiner([CP|_]) ->
-  case idna_data:lookup(CP) of
-    {[$M|_], _} ->
-      erlang:exit({bad_label, {initial_combiner, "Label begins with an illegal combining character"}});
-    _ ->
-      ok
-  end.
+
+check_initial_combiner([CP | _]) ->
+    case idna_data:lookup(CP) of
+        {[$M | _], _} ->
+            {error, initial_combiner};
+        _ ->
+            ok
+    end.
+
 
 check_context(Label) ->
-  check_context(Label, Label, true, 0).
-
-check_context(Label, CheckJoiners) ->
-  check_context(Label, Label, CheckJoiners, 0).
-
-check_context([CP | Rest], Label, CheckJoiners, Pos) ->
-  case idna_table:lookup(CP) of
-    'PVALID' ->
-      check_context(Rest, Label, CheckJoiners, Pos + 1);
-    'CONTEXTJ' ->
-        ok =  valid_contextj(CP, Label, Pos, CheckJoiners),
-        check_context(Rest, Label, CheckJoiners, Pos + 1);
-    'CONTEXTO' ->
-      ok =  valid_contexto(CP, Label, Pos, CheckJoiners),
-      check_context(Rest, Label, CheckJoiners, Pos + 1);
-    _Status ->
-      ErrorMsg = error_msg("Codepoint ~p not allowed (~p) at position ~p in ~p", [CP, _Status, Pos, Label]),
-      erlang:exit({bad_label, {context, ErrorMsg}})
-  end;
-check_context([], _, _, _) ->
-  ok.
+  check_context(Label, Label, 0).
 
 
-valid_contextj(CP, Label, Pos, true) ->
-  case idna_context:valid_contextj(CP, Label, Pos) of
-    true ->
-      ok;
-    false ->
-      ErrorMsg = error_msg("Joiner ~p not allowed at position ~p in ~p", [CP, Pos, Label]),
-      erlang:exit({bad_label, {contextj, ErrorMsg}})
-  end;
-valid_contextj(_CP, _Label, _Pos, false) ->
-  ok.
-
-valid_contexto(CP, Label, Pos, true) ->
-  case idna_context:valid_contexto(CP, Label, Pos) of
-    true ->
-      ok;
-    false ->
-      ErrorMsg = error_msg("Joiner ~p not allowed at position ~p in ~p", [CP, Pos, Label]),
-      erlang:exit({bad_label, {contexto, ErrorMsg}})
-  end;
-valid_contexto(_CP, _Label, _Pos, false) ->
-  ok.
-
-
-
--spec check_label(string()) -> ok.
-check_label(Label) ->
-  check_label(Label, true, true, true).
-
-%% @doc validate a label of  a domain
--spec check_label(Label, CheckHyphens, CheckJoiners, CheckBidi) -> Result when
-    Label :: string(),
-    CheckHyphens :: boolean(),
-    CheckJoiners :: boolean(),
-    CheckBidi :: boolean(),
-    Result :: ok.
-check_label(Label, CheckHyphens, CheckJoiners, CheckBidi) ->
-  ok = check_nfc(Label),
-  ok = check_hyphen(Label, CheckHyphens),
-  ok = check_initial_combiner(Label),
-  ok = check_context(Label, CheckJoiners),
-  ok = check_bidi(Label, CheckBidi),
-  ok.
+check_context([CP | Rest], Label, Pos) ->
+    case idna_table:lookup(CP) of
+        'PVALID' ->
+            check_context(Rest, Label, Pos + 1);
+        'CONTEXTJ' ->
+            case valid_contextj(CP, Label, Pos) of
+                ok    -> check_context(Rest, Label, Pos + 1);
+                Error -> Error
+            end;
+        'CONTEXTO' ->
+            case valid_contexto(CP, Label, Pos) of
+                ok    -> check_context(Rest, Label, Pos + 1);
+                Error -> Error
+            end;
+        Status ->
+            Format = "Codepoint ~tp not allowed (~tp) at position ~tp in ~tp",
+            Message = format(Format, [CP, Status, Pos, Label]),
+            {error, {context, Message}}
+    end;
+check_context([], _, _) ->
+    ok.
 
 
-check_bidi(Label, true) ->
-  idna_bidi:check_bidi(Label);
-check_bidi(_, false) ->
-  ok.
-
-check_label_length(Label) when length(Label) > 63 ->
-  ErrorMsg = error_msg("The label ~p  is too long", [Label]),
-  erlang:exit({bad_label, {too_long, ErrorMsg}});
-check_label_length(_) ->
-  ok.
-
-alabel(Label0) ->
-  Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
-            true ->
-              _ = try ulabel(Label0)
-                  catch
-                    _:Error ->
-                      ErrorMsg = error_msg("The label ~p  is not a valid A-label: ulabel error=~p", [Label0, Error]),
-                      erlang:exit({bad_label, {alabel, ErrorMsg}})
-                  end,
-              ok = check_label_length(Label0),
-
-              Label0;
-            false ->
-              ok = check_label(Label0),
-              ?ACE_PREFIX ++ punycode:encode(Label0)
-          end,
-  ok = check_label_length(Label),
-  Label.
-
-decode_1([], Acc) ->
-  lists:reverse(Acc);
-decode_1([Label|Labels], []) ->
-  decode_1(Labels, lists:reverse(ulabel(Label)));
-decode_1([Label|Labels], Acc) ->
-  decode_1(Labels, lists:reverse(ulabel(Label), [$.|Acc])).
-
-ulabel([]) -> [];
-ulabel(Label0) ->
-  Label = case lists:all(fun(C) -> idna_ucs:is_ascii(C) end, Label0) of
-            true ->
-              case Label0 of
-                [$x,$n,$-,$-|Label1] ->
-                  punycode:decode(lowercase(Label1));
-                _ ->
-                  lowercase(Label0)
-              end;
-            false ->
-              lowercase(Label0)
-          end,
-  ok = check_label(Label),
-  Label.
-
-%% Lowercase all chars in Str
--spec lowercase(String::unicode:chardata()) -> unicode:chardata().
-lowercase(CD) when is_list(CD) ->
-  try lowercase_list(CD, false)
-  catch unchanged -> CD
-  end;
-lowercase(<<CP1/utf8, Rest/binary>>=Orig) ->
-  try lowercase_bin(CP1, Rest, false) of
-    List -> unicode:characters_to_binary(List)
-  catch unchanged -> Orig
-  end;
-lowercase(<<>>) ->
-  <<>>.
+valid_contextj(CP, Label, Pos) ->
+    case idna_context:valid_contextj(CP, Label, Pos) of
+        true ->
+            ok;
+        false ->
+            Format = "Joiner ~tp not allowed at position ~tp in ~tp",
+            Message = format(Format, [CP, Pos, Label]),
+            {error, {contextj, Message}}
+    end.
 
 
-lowercase_list([CP1|[CP2|_]=Cont], _Changed) when $A =< CP1, CP1 =< $Z, CP2 < 256 ->
-  [CP1+32|lowercase_list(Cont, true)];
-lowercase_list([CP1|[CP2|_]=Cont], Changed) when CP1 < 128, CP2 < 256 ->
-  [CP1|lowercase_list(Cont, Changed)];
-lowercase_list([], true) ->
-  [];
-lowercase_list([], false) ->
-  throw(unchanged);
-lowercase_list(CPs0, Changed) ->
-  case unicode_util:lowercase(CPs0) of
-    [Char|CPs] when Char =:= hd(CPs0) -> [Char|lowercase_list(CPs, Changed)];
-    [Char|CPs] -> append(Char,lowercase_list(CPs, true));
-    [] -> lowercase_list([], Changed)
-  end.
-
-lowercase_bin(CP1, <<CP2/utf8, Bin/binary>>, _Changed)
-  when $A =< CP1, CP1 =< $Z, CP2 < 256 ->
-  [CP1+32|lowercase_bin(CP2, Bin, true)];
-lowercase_bin(CP1, <<CP2/utf8, Bin/binary>>, Changed)
-  when CP1 < 128, CP2 < 256 ->
-  [CP1|lowercase_bin(CP2, Bin, Changed)];
-lowercase_bin(CP1, Bin, Changed) ->
-  case unicode_util:lowercase([CP1|Bin]) of
-    [CP1|CPs] ->
-      case unicode_util:cp(CPs) of
-        [Next|Rest] ->
-          [CP1|lowercase_bin(Next, Rest, Changed)];
-        [] when Changed ->
-          [CP1];
-        [] ->
-          throw(unchanged)
-      end;
-    [Char|CPs] ->
-      case unicode_util:cp(CPs) of
-        [Next|Rest] ->
-          [Char|lowercase_bin(Next, Rest, true)];
-        [] ->
-          [Char]
-      end
-  end.
+valid_contexto(CP, Label, Pos) ->
+    case idna_context:valid_contexto(CP, Label, Pos) of
+        true ->
+            ok;
+        false ->
+            Format = "Joiner ~tp not allowed at position ~tp in ~tp",
+            Message = format(Format, [CP, Pos, Label]),
+            {error, {contexto, Message}}
+    end.
 
 
-append(Char, <<>>) when is_integer(Char) -> [Char];
-append(Char, <<>>) when is_list(Char) -> Char;
-append(Char, Bin) when is_binary(Bin) -> [Char,Bin];
-append(Char, Str) when is_integer(Char) -> [Char|Str];
-append(GC, Str) when is_list(GC) -> GC ++ Str.
-
-
-characters_to_nfc_list(CD) ->
-  case unicode_util:nfc(CD) of
-    [CPs|Str] when is_list(CPs) -> CPs ++ characters_to_nfc_list(Str);
-    [CP|Str] -> [CP|characters_to_nfc_list(Str)];
-    [] -> []
-  end.
+check_label_length(Label) ->
+    case length(Label) > 63 of
+        false -> ok;
+        true  -> {error, too_long}
+    end.
 
 
 uts46_remap(Str, Std3Rules, Transitional) ->
-  characters_to_nfc_list(uts46_remap_1(Str, Std3Rules, Transitional)).
+    case uts46_remap(Str, Std3Rules, Transitional, []) of
+        {ok, Remapped} -> unicode:characters_to_nfc_list(Remapped);
+        Error          -> Error
+    end.
 
-uts46_remap_1([Cp|Rs], Std3Rules, Transitional) ->
-  Row = try idna_mapping:uts46_map(Cp)
-        catch
-          error:badarg  ->
-            ?LOG_ERROR("codepoint ~p not found in mapping list~n", [Cp]),
-            erlang:exit({invalid_codepoint, Cp})
-        end,
-  {Status, Replacement} = case Row of
-                            {_, _} -> Row;
-                            S -> {S, undefined}
-                          end,
-  if
-    (Status =:= 'V');
-    ((Status =:= 'D') andalso (Transitional =:= false));
-    ((Status =:= '3') andalso (Std3Rules =:= true) andalso (Replacement =:= undefined)) ->
-      [Cp] ++ uts46_remap_1(Rs, Std3Rules, Transitional);
-    (Replacement =/= undefined) andalso (
-        (Status =:= 'M') orelse
-          (Status =:= '3' andalso Std3Rules =:= false) orelse
-          (Status =:= 'D' andalso Transitional =:= true)) ->
-      Replacement ++ uts46_remap_1(Rs, Std3Rules, Transitional);
-    (Status =:= 'I') ->
-      uts46_remap_1(Rs, Std3Rules, Transitional);
-    true ->
-      erlang:exit({invalid_codepoint, Cp})
-  end;
-uts46_remap_1([], _, _) ->
-  [].
+uts46_remap([CP | Rest], Std3Rules, Transitional, Acc) ->
+    case idna_mapping:uts46_map(CP) of
+        undefined ->
+            {error, {invalid_codepoint, CP}};
+        {Status, Replacement} ->
+            status_replace(CP, Rest, Status, Replacement, Std3Rules, Transitional, Acc);
+        Status ->
+            status_replace(CP, Rest, Status, undefined, Std3Rules, Transitional, Acc)
+    end;
+uts46_remap([], _, _, Acc) ->
+    {ok, lists:reverse(Acc)}.
 
-error_msg(Msg, Fmt) ->
-  lists:flatten(io_lib:format(Msg, Fmt)).
+status_replace(CP, Rest, 'V', _, Std3Rules, Transitional, Acc) ->
+    uts46_remap(Rest, Std3Rules, Transitional, [CP | Acc]);
+status_replace(CP, Rest, 'D', _, Std3Rules, false, Acc) ->
+    uts46_remap(Rest, Std3Rules, false, [CP | Acc]);
+status_replace(CP, Rest, '3', undefined, true, Transitional, Acc) ->
+    uts46_remap(Rest, true, Transitional, [CP | Acc]);
+status_replace(_, Rest, 'I', _, Std3Rules, Transitional, Acc) ->
+    uts46_remap(Rest, Std3Rules, Transitional, Acc);
+status_replace(CP, _, undefined, _, _, _, _) ->
+    {error, {invalid_codepoint, CP}};
+status_replace(_, Rest, 'M', Replacement, Std3Rules, Transitional, Acc) ->
+    uts46_remap(Rest, Std3Rules, Transitional, [Replacement | Acc]);
+status_replace(_, Rest, '3', Replacement, false, Transitional, Acc) ->
+    uts46_remap(Rest, false, Transitional, [Replacement | Acc]);
+status_replace(_, Rest, 'D', Replacement, Std3Rules, true, Acc) ->
+    uts46_remap(Rest, Std3Rules, true, [Replacement | Acc]);
+status_replace(CP, _, _, _, _, _, _) ->
+    {error, {invalid_codepoint, CP}}.
+
+
+is_ascii(Char) when is_integer(Char) ->
+    Char >= 0 andalso Char =< 127;
+is_ascii(_) ->
+    false.
+
+
+format(Format, Args) ->
+    unicode:characters_to_list(io_lib:format(Format, Args)).

@@ -7,90 +7,110 @@
 -module(idna_bidi).
 -author("benoitc").
 
-%% API
 -export([check_bidi/1, check_bidi/2]).
 
-check_bidi(Label) -> check_bidi(Label, false).
+
+
+%%% API
+
+check_bidi(Label) ->
+    check_bidi(Label, false).
+
 
 check_bidi(Label, CheckLtr) ->
-  %% Bidi rules should only be applied if string contains RTL characters
-  case {check_rtl(Label, Label), CheckLtr} of
-    {false, false}  -> ok;
-    _ ->
-      [C | _Rest] = Label,
-      % bidi rule 1
-      RTL = rtl(C, Label),
-      check_bidi1(Label, RTL, false, undefined)
-  end.
+    %% Bidi rules should only be applied if string contains RTL characters
+    case CheckLtr orelse check_rtl(Label, Label) of
+        false ->
+            ok;
+        true ->
+            C = hd(Label),
+            RTL = bidi_rule1(C, Label),
+            check_bidi(Label, RTL, false, undefined)
+    end.
+
+
+
+%%% Implementation
 
 check_rtl([C | Rest], Label) ->
-  case idna_data:bidirectional(C) of
-    false ->
-      erlang:exit(bidi_error("unknown directionality in label=~p c=~w~n", [Label, C]));
-    Dir ->
-      case lists:member(Dir, ["R", "AL", "AN"]) of
-        true -> true;
-        false -> check_rtl(Rest, Label)
-      end
-  end;
-check_rtl([], _Label) ->
-  false.
-
-rtl(C, Label) ->
-  case idna_data:bidirectional(C) of
-    "R" -> true;
-    "AL" -> true;
-    "L" -> false;
-    _ ->
-      erlang:exit(bidi_error("first codepoint in label ~p must be directionality L, R or AL ", [Label]))
-  end.
+    case idna_data:bidirectional(C) of
+        false ->
+            bidi_error("Unknown directionality in label=~tp c=~tw.", [Label, C]);
+        Dir ->
+            case lists:member(Dir, ["R", "AL", "AN"]) of
+                true  -> true;
+                false -> check_rtl(Rest, Label)
+            end
+    end;
+check_rtl([], _) ->
+    false.
 
 
-check_bidi1([C | Rest], true, ValidEnding, NumberType) ->
-  Dir =  idna_data:bidirectional(C),
-  %% bidi rule 2
-  ValidEnding2 = case lists:member(Dir, ["R", "AL", "AN", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"]) of
-                  true ->
-                    % bidi rule 3
-                    case lists:member(Dir, ["R", "AL", "AN", "EN"]) of
-                      true  -> true;
-                      false when Dir =/= "NSM" -> false;
-                      false -> ValidEnding
-                    end;
-                  false ->
-                    erlang:exit({bad_label, {bidi, "Invalid direction for codepoint  in a right-to-left label"}})
-                end,
-  % bidi rule 4
-  NumberType2 = case lists:member(Dir, ["AN", "EN"]) of
-                  true when NumberType =:= undefined ->
-                    Dir;
-                  true when NumberType /= Dir ->
-                    erlang:exit({bad_label, {bidi, "Can not mix numeral types in a right-to-left label"}});
-                  _ ->
-                    NumberType
-                end,
-  check_bidi1(Rest, true, ValidEnding2, NumberType2);
-check_bidi1([C | Rest], false, ValidEnding, NumberType) ->
-  Dir =  idna_data:bidirectional(C),
-  % bidi rule 5
-  ValidEnding2 = case lists:member(Dir, ["L", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"]) of
-                   true ->
-                     % bidi rule 6
-                     case Dir of
-                       "L" -> true;
-                       "EN" -> true;
-                       _ when Dir /= "NSM" -> false;
-                       _ -> ValidEnding
-                     end;
-                   false ->
-                     erlang:exit({bad_label, {bidi, "Invalid direction for codepoint in a left-to-right label"}})
-                 end,
-  check_bidi1(Rest, false, ValidEnding2, NumberType);
-check_bidi1([], _, false, _) ->
-  erlang:exit({bad_label, {bidi, "Label ends with illegal codepoint directionality"}});
-check_bidi1([], _, true, _) ->
-  ok.
+bidi_rule1(C, Label) ->
+    case idna_data:bidirectional(C) of
+        "R"  -> true;
+        "AL" -> true;
+        "L"  -> false;
+        _    ->
+            Format = "First codepoint in label ~tp must be directionality L, R or AL.",
+            bidi_error(Format, [Label])
+    end.
 
-bidi_error(Msg, Fmt) ->
-  ErrorMsg = lists:flatten(io_lib:format(Msg, Fmt)),
-  {bad_label, {bidi, ErrorMsg}}.
+
+check_bidi([C | Rest], true, ValidEnding, NumberType) ->
+    Dir = idna_data:bidirectional(C),
+    BidiRule2 = ["R", "AL", "AN", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"],
+    ValidEnding2 =
+        case lists:member(Dir, BidiRule2) of
+            true ->
+                BidiRule3 =["R", "AL", "AN", "EN"],
+                case lists:member(Dir, BidiRule3) of
+                    true                     -> true;
+                    false when Dir =/= "NSM" -> false;
+                    false                    -> ValidEnding
+                end;
+            false ->
+                bidi_error("Invalid direction for codepoint in a right-to-left label.")
+        end,
+    BidiRule4 = ["AN", "EN"],
+    NumberType2 =
+        case lists:member(Dir, BidiRule4) of
+            true when NumberType =:= undefined ->
+                Dir;
+            true when NumberType /= Dir ->
+                bidi_error("Can not mix numeral types in a right-to-left label.");
+            _ ->
+                NumberType
+        end,
+    check_bidi(Rest, true, ValidEnding2, NumberType2);
+check_bidi([C | Rest], false, ValidEnding, NumberType) ->
+    Dir = idna_data:bidirectional(C),
+    BidiRule5 = ["L", "EN", "ES", "CS", "ET", "ON", "BN", "NSM"],
+    ValidEnding2 =
+        case lists:member(Dir, BidiRule5) of
+            true ->
+                % bidi rule 6
+                BidiRule6 = ["L", "EN"],
+                case lists:member(Dir, BidiRule6) of
+                    true                     -> true;
+                    false when Dir =/= "NSM" -> false;
+                    false                    -> ValidEnding
+                end;
+            false ->
+                bidi_error("Invalid direction for codepoint in a left-to-right label.")
+        end,
+    check_bidi(Rest, false, ValidEnding2, NumberType);
+check_bidi([], _, false, _) ->
+    bidi_error("Label ends with illegal codepoint directionality.");
+check_bidi([], _, true, _) ->
+    ok.
+
+
+bidi_error(Format, []) ->
+    bidi_error(Format);
+bidi_error(Format, Args) ->
+    Message = unicode:characters_to_list(io_lib:format(Format, Args)),
+    bidi_error(Message).
+
+bidi_error(Message) ->
+    {error, {bidi, Message}}.

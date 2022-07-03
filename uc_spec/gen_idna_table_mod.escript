@@ -18,129 +18,141 @@
 
 
 main(_) ->
-  {ok, IM} = file:open("../uc_spec/idna-table.txt", [read, raw, {read_ahead, 1000000}]),
-  Data = foldl(fun parse_idna_table/2, [], IM),
-  file:close(IM),
+    Table = "../uc_spec/idna-table.txt",
+    {ok, IM} = file:open(Table, [read, raw, {read_ahead, 1000000}]),
+    Data = read_data(fun parse_idna_table/2, [], IM),
+    file:close(IM),
 
-  %% Make module
-  OutputPath = filename:join(["..", "src", ?MOD++".erl"]),
-  {ok, Out} = file:open(OutputPath, [write]),
-  gen_file(Out, Data),
-  ok = file:close(Out),
-  ok.
+    %% Make module
+    OutputPath = filename:join(["..", "src", ?MOD++".erl"]),
+    {ok, Out} = file:open(OutputPath, [write]),
+    ok = gen_file(Out, Data),
+    ok = file:close(Out).
 
 
 parse_idna_table(Line0, Acc) ->
-  [Line|_Comments] = tokens(Line0, "#"),
-  [CodePoints, Status] = tokens(Line, ";"),
-  [{to_range(CodePoints), to_atom(Status)} | Acc].
+    [Line | _Comments] = tokens(Line0, "#"),
+    [CodePoints, Status] = tokens(Line, ";"),
+    [{to_range(CodePoints), to_atom(Status)} | Acc].
 
 
 gen_file(Fd, Data) ->
-  gen_header(Fd),
-  gen_disallowed_p(Fd),
-  gen_contextj_p(Fd),
-  gen_contexto_p(Fd),
-  gen_unassigned_p(Fd),
-  gen_valid_p(Fd),
-  gen_lookup(Fd, Data),
-  ok.
+    ok = gen_header(Fd),
+    ok = gen_disallowed_p(Fd),
+    ok = gen_contextj_p(Fd),
+    ok = gen_contexto_p(Fd),
+    ok = gen_unassigned_p(Fd),
+    ok = gen_valid_p(Fd),
+    ok = gen_lookup(Fd, Data).
 
 
 gen_header(Fd) ->
-  io:put_chars(Fd, "%%\n%% this file is generated do not modify\n"),
-  io:put_chars(Fd, "%% see ../uc_spec/gen_idna_table.escript\n\n"),
-  io:put_chars(Fd, "-module(" ++ ?MOD ++").\n"),
-  io:put_chars(Fd, "-compile(compressed).\n"),
-  io:put_chars(Fd, "-export([lookup/1]).\n"),
-  io:put_chars(Fd, "-export([disallowed_p/1, contextj_p/1, contexto_p/1, unassigned_p/1, valid_p/1]).\n"),
-  ok.
+    Header =
+        "%%\n%% this file is generated do not modify\n"
+        "%% see ../uc_spec/gen_idna_table.escript\n\n"
+        "-module(" ++ ?MOD ++").\n"
+        "-compile(compressed).\n"
+        "-export([lookup/1,\n"
+        "         disallowed_p/1,\n"
+        "         contextj_p/1, contexto_p/1,\n"
+        "         unassigned_p/1,\n"
+        "         valid_p/1]).\n\n\n",
+    ok = io:put_chars(Fd, Header).
+
 
 gen_disallowed_p(Fd) ->
-  io:put_chars(Fd, "disallowed_p(CP) -> lookup(CP) == 'DISALLOWED'.\n").
+    io:put_chars(Fd, "disallowed_p(CP) -> lookup(CP) == 'DISALLOWED'.\n\n\n").
+
 
 gen_contextj_p(Fd) ->
-  io:put_chars(Fd, "contextj_p(CP) -> lookup(CP) == 'CONTEXTJ'.\n").
+    io:put_chars(Fd, "contextj_p(CP) -> lookup(CP) == 'CONTEXTJ'.\n\n\n").
+
 
 gen_contexto_p(Fd) ->
-  io:put_chars(Fd, "contexto_p(CP) -> lookup(CP) == 'CONTEXTO'.\n").
+    io:put_chars(Fd, "contexto_p(CP) -> lookup(CP) == 'CONTEXTO'.\n\n\n").
+
 
 gen_unassigned_p(Fd) ->
-  io:put_chars(Fd, "unassigned_p(CP) -> lookup(CP) == 'UNASSIGNED'.\n").
+    io:put_chars(Fd, "unassigned_p(CP) -> lookup(CP) == 'UNASSIGNED'.\n\n\n").
+
 
 gen_valid_p(Fd) ->
-  io:put_chars(Fd, "valid_p(CP) -> lookup(CP) == 'PVALID'.\n").
+    io:put_chars(Fd, "valid_p(CP) -> lookup(CP) == 'PVALID'.\n\n\n").
+
 
 gen_lookup(Fd, Data) ->
-  lists:foreach(fun({Cp, Class}) ->
-    io:format(Fd, "lookup~s ~p;~n", [gen_single_clause(Cp), Class])
-                end,
-    optimize_ranges(lists:sort(Data))),
-  io:put_chars(Fd, "lookup(_) -> 'UNASSIGNED'."),
-  ok.
-
-gen_single_clause({R0, undefined}) ->
-  io_lib:format("(~w) ->", [R0]);
-gen_single_clause({R0, R1}) ->
-  io_lib:format("(CP) when ~w =< CP, CP =< ~w ->", [R0,R1]).
-
-optimize_ranges(Rs0) ->
-  PF = fun
-         ({{N, undefined}, _}) when is_integer(N) -> true;
-         (_) -> false
-       end,
-
-  {Singles, Rs} = lists:partition(PF, Rs0),
-  Singles ++ Rs.
+    Lookup =
+        fun({Cp, Class}) ->
+            io:format(Fd, "lookup~s ~p;~n", [clause(Cp), Class])
+        end,
+    lists:foreach(Lookup, optimize_ranges(lists:sort(Data))),
+    ok = io:put_chars(Fd, "lookup(_) -> 'UNASSIGNED'.").
 
 
-to_range(CodePoints0) ->
-  case tokens(CodePoints0, ".") of
-    [CodePoint] ->
-      {hex_to_int(CodePoint), undefined};
-    [CodePoint1, "", CodePoint2] ->
-      {hex_to_int(CodePoint1), hex_to_int(CodePoint2)}
-  end.
+clause({FirstCP, LastCP}) ->
+    io_lib:format("(CP) when ~7w =< CP, CP =< ~7w ->", [FirstCP, LastCP]);
+clause(CodePoint) ->
+    io_lib:format("(~w) ->", [CodePoint]).
 
-hex_to_int([]) -> [];
+
+optimize_ranges(CodeValues) ->
+    Filter =
+        fun
+            ({N, _}) when is_integer(N) -> true;
+            (_)                         -> false
+        end,
+    {Singles, Rs} = lists:partition(Filter, CodeValues),
+    Singles ++ Rs.
+
+
+to_range(CodePoints) ->
+    case tokens(CodePoints, ".") of
+        [CP]                  -> hex_to_int(CP);
+        [FirstCP, "", LastCP] -> {hex_to_int(FirstCP), hex_to_int(LastCP)}
+    end.
+
+
+hex_to_int([]) ->
+    [];
 hex_to_int(HexStr) ->
-  list_to_integer(?trim(HexStr), 16).
+    list_to_integer(?trim(HexStr), 16).
+
 
 to_atom(Str) ->
   list_to_atom(?trim(Str)).
 
-foldl(Fun, Acc, Fd) ->
-  Get = fun() -> file:read_line(Fd) end,
-  foldl_1(Fun, Acc, Get).
 
-foldl_1(_Fun, {done, Acc}, _Get) -> Acc;
-foldl_1(Fun, Acc, Get) ->
-  case Get() of
-    eof -> Acc;
-    {ok, "#" ++ _} -> %% Ignore comments
-      foldl_1(Fun, Acc, Get);
-    {ok, "\n"} -> %% Ignore empty lines
-      foldl_1(Fun, Acc, Get);
-    {ok, Line} ->
-      foldl_1(Fun, Fun(Line, Acc), Get)
-  end.
+read_data(Fun, Acc, Fd) ->
+    Get = fun() -> file:read_line(Fd) end,
+    fold(Fun, Acc, Get).
+
+
+fold(_, {done, Acc}, _) ->
+    Acc;
+fold(Fun, Acc, Get) ->
+    case Get() of
+        eof            -> Acc;
+        {ok, "#" ++ _} -> fold(Fun, Acc, Get); %% Ignore comments
+        {ok, "\n"}     -> fold(Fun, Acc, Get); %% Ignore empty lines
+        {ok, Line}     -> fold(Fun, Fun(Line, Acc), Get)
+    end.
 
 
 
 %% Differs from string:tokens, it returns empty string as token between two delimiters
 tokens(S, [C]) ->
-  tokens(lists:reverse(S), C, []).
+    tokens(lists:reverse(S), C, []).
 
-tokens([Sep|S], Sep, Toks) ->
-  tokens(S, Sep, [[]|Toks]);
-tokens([C|S], Sep, Toks) ->
-  tokens_2(S, Sep, Toks, [C]);
+tokens([Sep | S], Sep, Toks) ->
+    tokens(S, Sep, [[] | Toks]);
+tokens([C | S], Sep, Toks) ->
+    tokens_2(S, Sep, Toks, [C]);
 tokens([], _, Toks) ->
-  Toks.
+    Toks.
 
-tokens_2([Sep|S], Sep, Toks, Tok) ->
-  tokens(S, Sep, [Tok|Toks]);
-tokens_2([C|S], Sep, Toks, Tok) ->
-  tokens_2(S, Sep, Toks, [C|Tok]);
+tokens_2([Sep | S], Sep, Toks, Tok) ->
+    tokens(S, Sep, [Tok | Toks]);
+tokens_2([C | S], Sep, Toks, Tok) ->
+    tokens_2(S, Sep, Toks, [C | Tok]);
 tokens_2([], _Sep, Toks, Tok) ->
-  [Tok|Toks].
+    [Tok | Toks].

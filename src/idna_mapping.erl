@@ -5,6 +5,8 @@
 -module(idna_mapping).
 -compile(compressed).
 -export([uts46_map/1]).
+
+
 uts46_map(47) -> '3';
 uts46_map(65) -> {'M', [97]};
 uts46_map(66) -> {'M', [98]};
@@ -8718,4 +8720,4 @@ uts46_map(CP) when 983040 =< CP, CP =< 1048573 -> 'X';
 uts46_map(CP) when 1048574 =< CP, CP =< 1048575 -> 'X';
 uts46_map(CP) when 1048576 =< CP, CP =< 1114109 -> 'X';
 uts46_map(CP) when 1114110 =< CP, CP =< 1114111 -> 'X';
-uts46_map(_) -> erlang:error(badarg).
+uts46_map(_) -> undefined.
