@@ -19,10 +19,27 @@ A pure Erlang IDNA implementation that folllow the [RFC5891](https://tools.ietf.
 
 ## Usage
 
-
-
 `idna:encode/{1,2}` and `idna:decode/{1, 2}` functions are used to encode or decode an Internationalized Domain
 Names using IDNA protocol.
+
+basic example:
+
+```erlang
+1> IDNA_Name = "日本.foo.何かの日本語.jp".                                  
+[26085,26412,46,102,111,111,46,20309,12363,12398,26085,
+ 26412,35486,46,106,112]
+2> {ok, Encoded} = idna:encode(IDNA_Name).
+{ok,"xn--wgv71a.foo.xn--u8jtd599ig7tzobtz6h.jp"}
+3> {ok, Decoded} = idna:decode(Encoded).
+{ok,[26085,26412,46,102,111,111,46,20309,12363,12398,26085,
+     26412,35486,46,106,112]}
+4> io:format("~ts~n", [Decoded]).
+日本.foo.何かの日本語.jp
+ok
+5> Decoded =:= IDNA_Name.
+true
+```
+
 
 Input can be mapped to unicode using [uts46](https://unicode.org/reports/tr46/#Introduction)
 by setting  the `uts46` flag to true (default is false). If transition from IDNA 2003 to
@@ -36,12 +53,12 @@ example:
 {ok, "xn--wgv71a119e.xn--jp-"}
 2> idna:encode("日本語.ＪＰ", [uts46]).
 {ok, "xn--wgv71a119e.xn--jp-"}
-...
 ```
 
 
-Update Unicode data
+## Updating Unicode data
 
+```shell
 wget -O test/IdnaTestV2.txt https://www.unicode.org/Public/idna/latest/IdnaTestV2.txt
 wget -O uc_spec/ArabicShaping.txt https://www.unicode.org/Public/UNIDATA/ArabicShaping.txt
 wget -O uc_spec/IdnaMappingTable.txt https://www.unicode.org/Public/idna/latest/IdnaMappingTable.txt
@@ -55,3 +72,4 @@ cd uc_spec
 ./gen_idna_data_mod.escript
 ./gen_idna_table_mod.escript
 ./gen_idna_mapping_mod.escript
+```
