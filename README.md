@@ -33,25 +33,11 @@ example:
 
 ```erlang
 1> idna:encode("日本語。ＪＰ", [uts46]).
-"xn--wgv71a119e.xn--jp-"
+{ok, "xn--wgv71a119e.xn--jp-"}
 2> idna:encode("日本語.ＪＰ", [uts46]).
-"xn--wgv71a119e.xn--jp-"
+{ok, "xn--wgv71a119e.xn--jp-"}
 ...
 ```
-
-
-Legacy support of IDNA 2003 is also available with  `to_ascii` and `to_unicode` functions:
-
-
-```erlang
-1> Domain = "www.詹姆斯.com".
-[119,119,119,46,35449,22982,26031,46,99,111,109]
-2> Encoded =  idna:to_ascii("www.詹姆斯.com").
-"www.xn--8ws00zhy3a.com"
-3> idna:to_unicode(Encoded).
-[119,119,119,46,35449,22982,26031,46,99,111,109]
-```
-
 
 
 Update Unicode data
@@ -66,6 +52,6 @@ git clone https://github.com/kjd/idna.git
 ./idna/tools/idna-data make-table --version 13.0.0 > uc_spec/idna-table.txt
 
 cd uc_spec
-./gen_idnadata_mod.escript
+./gen_idna_data_mod.escript
 ./gen_idna_table_mod.escript
 ./gen_idna_mapping_mod.escript

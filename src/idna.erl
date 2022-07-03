@@ -219,7 +219,7 @@ encode3([], Acc) ->
     {ok, unicode:characters_to_list(lists:reverse(Acc))};
 encode3([Label | Rest], []) ->
     case alabel(Label) of
-        {ok, Converted} -> encode3(Rest, Converted);
+        {ok, Converted} -> encode3(Rest, lists:reverse(Converted));
         Error           -> Error
     end;
 encode3([Label | Rest], Acc) ->
@@ -236,7 +236,7 @@ decode3([], Acc) ->
     {ok, unicode:characters_to_list(lists:reverse(Acc))};
 decode3([Label | Rest], []) ->
     case ulabel(Label) of
-        {ok, Converted} -> decode3(Rest, Converted);
+        {ok, Converted} -> decode3(Rest, lists:reverse(Converted));
         Error           -> Error
     end;
 decode3([Label | Rest], Acc) ->
@@ -361,7 +361,7 @@ uts46_remap([CP | Rest], Std3Rules, Transitional, Acc) ->
             status_replace(CP, Rest, Status, undefined, Std3Rules, Transitional, Acc)
     end;
 uts46_remap([], _, _, Acc) ->
-    {ok, lists:reverse(Acc)}.
+    {ok, Acc}.
 
 status_replace(CP, Rest, 'V', _, Std3Rules, Transitional, Acc) ->
     uts46_remap(Rest, Std3Rules, Transitional, [CP | Acc]);
